@@ -56,7 +56,6 @@ export default function Navbar() {
                 gap: "0.75rem",
               }}
             >
-              {/* Profile Button */}
               <button
                 onClick={() => navigate("/profile")}
                 style={{
@@ -86,7 +85,12 @@ export default function Navbar() {
                     flexShrink: 0,
                   }}
                 >
-                  {(user.name || "U").charAt(0).toUpperCase()}
+                  {(user.name || "U")
+                    .split(" ")
+                    .map((w) => w[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)}
                 </div>
 
                 <span

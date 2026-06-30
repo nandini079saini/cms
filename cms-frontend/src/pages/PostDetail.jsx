@@ -131,10 +131,9 @@ export default function PostDetail() {
                 e.currentTarget.style.transform = "translateX(0)";
               }}
             >
-              ← Back to feed
+              Back to feed
             </button>
 
-            {/* Category */}
             {post?.category && (
               <div
                 style={{

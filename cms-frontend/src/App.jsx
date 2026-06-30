@@ -8,7 +8,7 @@ import useVisitTracker from "./hooks/useVisitTracker";
 import { useAuth } from "./context/useAuth";
 
 function AppInner() {
-  useVisitTracker(); // tracks every page visit
+  useVisitTracker();
   const { user } = useAuth();
 
   return (

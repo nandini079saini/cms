@@ -99,7 +99,6 @@ export default function PostCard({ post }) {
           gap: "0.25rem",
         }}
       >
-        {/* Author row */}
         <div
           style={{
             display: "flex",
@@ -127,7 +126,6 @@ export default function PostCard({ post }) {
           </span>
         </div>
 
-        {/* Title */}
         <h2
           style={{
             fontFamily: "inherit",

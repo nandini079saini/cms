@@ -30,18 +30,8 @@ export default function LikeComment() {
   };
 
   return (
-    <div style={{ marginTop: "3rem" }}>
-      {/* Likes + comment count row */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "1rem",
-          paddingBottom: "1.5rem",
-          borderBottom: "1px solid #ebebeb",
-          marginBottom: "2rem",
-        }}
-      >
+    <div className="mt-12">
+      <div className="flex align-centre gap-[1 rem] pb-[1.5 rem] border-b border-[#ebebeb] mb-8">
         <button
           onClick={handleLike}
           style={{
