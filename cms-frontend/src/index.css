@@ -1,5 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap");
-
+@import url("https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.css");
 *,
 *::before,
 *::after {
@@ -25,12 +25,20 @@
   --font-mono: "JetBrains Mono", monospace;
 }
 
+html,
 body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
   min-height: 100vh;
   line-height: 1.6;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+.qb-swiper-wrapper {
+  overflow: hidden;
+  width: 100%;
 }
 
 a {

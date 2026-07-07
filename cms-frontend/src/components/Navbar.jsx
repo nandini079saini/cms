@@ -59,49 +59,25 @@ export default function Navbar() {
               <button
                 onClick={() => navigate("/profile")}
                 style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: "50%",
+                  background: "var(--accent)",
                   display: "flex",
                   alignItems: "center",
-                  gap: "0.5rem",
-                  background: "#fff",
-                  border: "1px solid #ddd",
-                  borderRadius: "24px",
-                  padding: "0.35rem 0.75rem",
-                  cursor: "pointer",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                  justifyContent: "center",
+                  color: "#fff",
+                  fontSize: "0.8rem",
+                  fontWeight: 700,
+                  flexShrink: 0,
                 }}
               >
-                <div
-                  style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: "50%",
-                    background: "var(--accent)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#fff",
-                    fontSize: "0.8rem",
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}
-                >
-                  {(user.name || "U")
-                    .split(" ")
-                    .map((w) => w[0])
-                    .join("")
-                    .toUpperCase()
-                    .slice(0, 2)}
-                </div>
-
-                <span
-                  style={{
-                    fontSize: "0.82rem",
-                    fontWeight: 600,
-                    color: "#222",
-                  }}
-                >
-                  Profile
-                </span>
+                {(user.name || "U")
+                  .split(" ")
+                  .map((w) => w[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2)}
               </button>
 
               <button

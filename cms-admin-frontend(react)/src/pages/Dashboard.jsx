@@ -69,6 +69,7 @@ const API = "http://localhost:3000/api";
 export default function Dashboard() {
   const [stats, setStats] = useState([]);
   const [posts, setPosts] = useState([]);
+  const [search, setSearch] = useState("");
 
   const fetchStats = async () => {
     try {
@@ -144,7 +145,12 @@ export default function Dashboard() {
           minHeight: "100vh",
         }}
       >
-        <Topbar title="Dashboard" />
+        <Topbar
+          title="Posts"
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search posts…"
+        />
 
         {/* Main content  */}
         <div style={{ padding: 28, flex: 1 }}>

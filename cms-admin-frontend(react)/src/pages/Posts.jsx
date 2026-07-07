@@ -64,7 +64,12 @@ export default function Posts() {
           minHeight: "100vh",
         }}
       >
-        <Topbar title="Posts" />
+        <Topbar
+          title="Posts"
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search posts…"
+        />
         {/* main content */}
         <div style={{ padding: 28, flex: 1 }}>
           {/* header- filters */}
@@ -102,24 +107,6 @@ export default function Posts() {
                   {cap(f === "all" ? "All" : f)}
                 </button>
               ))}
-              <input
-                type="text"
-                placeholder="Search…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  background: "var(--surface2)",
-                  border: `1px solid var(--border)`,
-                  borderRadius: 8,
-                  color: "var(--text)",
-                  fontFamily: "Inter, sans-serif",
-                  outline: "none",
-                  boxSizing: "border-box",
-                  width: 180,
-                  padding: "6px 12px",
-                  fontSize: 12,
-                }}
-              />
             </div>
             <span style={{ fontSize: 13, color: "var(--muted)" }}>
               {filtered.length} post{filtered.length !== 1 ? "s" : ""}

@@ -10,6 +10,7 @@ export default function ManageCategories() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [search, setSearch] = useState("");
 
   const [name, setName] = useState("");
   const [gifUrl, setGifUrl] = useState("");
@@ -113,7 +114,12 @@ export default function ManageCategories() {
           minHeight: "100vh",
         }}
       >
-        <Topbar title="Categories" />
+        <Topbar
+          title="Posts"
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search posts…"
+        />
         <div style={{ padding: 28, flex: 1 }}>
           <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
             <form

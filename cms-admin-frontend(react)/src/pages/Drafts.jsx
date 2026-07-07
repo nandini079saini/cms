@@ -39,10 +39,10 @@ function timeAgo(dateStr) {
 }
 export default function Drafts() {
   const [allDrafts, setAllDrafts] = useState([]);
-  const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     fetch(API + "/posts")
@@ -112,7 +112,12 @@ export default function Drafts() {
           minHeight: "100vh",
         }}
       >
-        <Topbar title="Drafts" />
+        <Topbar
+          title="Posts"
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search posts…"
+        />
 
         <div style={{ padding: 28, flex: 1 }}>
           <div

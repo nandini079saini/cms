@@ -8,8 +8,14 @@ export default function Topbar({
   showIcons = false,
   backTo,
   actions,
+  searchValue,
+  onSearchChange,
+  searchPlaceholder = "Search...",
 }) {
-  const [searchVal, setSearchVal] = useState("");
+  const [internalSearch, setInternalSearch] = useState("");
+  const isControlled = searchValue !== undefined;
+  const searchVal = isControlled ? searchValue : internalSearch;
+  const setSearchVal = isControlled ? onSearchChange : setInternalSearch;
 
   return (
     <header
@@ -73,7 +79,7 @@ export default function Topbar({
             </span>
             <input
               type="text"
-              placeholder="Search..."
+              placeholder={searchPlaceholder}
               value={searchVal}
               onChange={(e) => setSearchVal(e.target.value)}
               style={{

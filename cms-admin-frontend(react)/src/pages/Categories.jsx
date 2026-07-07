@@ -106,7 +106,12 @@ export default function Categories() {
           minHeight: "100vh",
         }}
       >
-        <Topbar title="Categories" />
+        <Topbar
+          title="Posts"
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search posts…"
+        />
         {/* main content */}
         <div style={{ padding: 28, flex: 1 }}>
           {/* header- filters */}

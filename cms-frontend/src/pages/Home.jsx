@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAllPosts } from "../api/posts";
 import PostCard from "../components/PostCard";
+import QuickBites from "../components/QuickBites";
 
 const API = "http://localhost:3000/api";
 
@@ -73,7 +74,7 @@ export default function Home() {
   };
 
   return (
-    <main style={{ background: "#fff", minHeight: "100vh" }}>
+    <main style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <div
         style={{
           background:
@@ -81,6 +82,7 @@ export default function Home() {
           padding: "3.5rem 1.5rem 3rem",
           textAlign: "center",
           color: "#fff",
+          overflowX: "hidden",
         }}
       >
         <h1
@@ -108,6 +110,8 @@ export default function Home() {
           and ideas.
         </p>
       </div>
+
+      <QuickBites />
 
       <div
         style={{
