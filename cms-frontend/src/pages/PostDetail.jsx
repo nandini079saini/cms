@@ -1,7 +1,10 @@
+import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getPostById } from "../api/posts";
 import LikeComment from "../components/LikeComment";
+import RelatedAI from "../components/RelatedAI";
+import api from "../api/axiosInstance";
 
 export default function PostDetail() {
   const { id } = useParams();
@@ -11,6 +14,22 @@ export default function PostDetail() {
     queryKey: ["post", id],
     queryFn: () => getPostById(id),
   });
+  const post = data?.data?.post;
+  useEffect(() => {
+    if (!post) return;
+
+    const customer = JSON.parse(localStorage.getItem("cms_user") || "null");
+    if (!customer?.id) return;
+
+    api
+      .post("/api/visit", {
+        visitor_id: customer.id,
+        page: "Post",
+        category: post.category,
+        post_id: post.id,
+      })
+      .catch(() => {});
+  }, [post]);
 
   if (isLoading)
     return (
@@ -39,8 +58,6 @@ export default function PostDetail() {
         404 — Post not found
       </div>
     );
-
-  const post = data?.data?.post;
 
   const date = post?.published_at
     ? new Date(post.published_at.replace(" ", "T")).toLocaleDateString(
@@ -223,7 +240,6 @@ export default function PostDetail() {
                 </div>
               </div>
             </div>
-
             <div
               style={{
                 color: "#222",
@@ -236,6 +252,8 @@ export default function PostDetail() {
                   '<p style="color:#717171">No content available.</p>',
               }}
             />
+
+            <RelatedAI postId={post?.id} />
 
             <LikeComment postId={id} />
           </div>

@@ -1,31 +1,47 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { getAllPosts } from "../api/posts";
+import { getAllQuickBites } from "../api/quickbites";
+import api from "../api/axiosInstance";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { Pagination, Mousewheel, Keyboard } from "swiper/modules";
+import { Keyboard, Mousewheel } from "swiper/modules";
 import { EffectCards } from "swiper/modules";
 import "swiper/css/effect-cards";
 import "swiper/css";
-import "swiper/css/pagination";
 
 export default function QuickBites() {
   const navigate = useNavigate();
   const [activeCard, setActiveCard] = useState(0);
+  const [isInteracting, setIsInteracting] = useState(false);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["posts"],
-    queryFn: getAllPosts,
+    queryKey: ["quickbites"],
+    queryFn: getAllQuickBites,
   });
 
-  const posts = data?.data?.posts || [];
+  const posts = data?.data?.quickBites || [];
 
   const [reelOpen, setReelOpen] = useState(false);
   const [reelIdx, setReelIdx] = useState(0);
 
+  const trackVisit = (postId) => {
+    const customer = JSON.parse(localStorage.getItem("cms_user") || "null");
+    if (!customer?.id) return;
+
+    api
+      .post("/api/visit", {
+        visitor_id: customer.id,
+        page: "QuickBites",
+        category: null,
+        post_id: postId,
+      })
+      .catch(() => {});
+  };
+
   const openReel = (idx) => {
     setReelIdx(idx);
     setReelOpen(true);
+    trackVisit(posts[idx]?.id);
   };
 
   if (isLoading)
@@ -52,7 +68,7 @@ export default function QuickBites() {
           fontSize: "0.9rem",
         }}
       >
-        Couldn't load posts
+        Couldn't load quick bites
       </div>
     );
 
@@ -66,7 +82,7 @@ export default function QuickBites() {
           fontSize: "0.9rem",
         }}
       >
-        No posts yet
+        No quick bites yet
       </div>
     );
 
@@ -108,13 +124,7 @@ export default function QuickBites() {
   text-align: center;
 }
 
-.qb-excerpt {
-  margin: 0;
-  font-size: .78rem;
-  color: #717171;
-  text-align: center;
-  line-height: 1.4;
-}
+
        
 
 @media(min-width:769px){
@@ -133,21 +143,21 @@ export default function QuickBites() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #000;
+          background: radial-gradient(circle at 50% 30%, var(--accent-dark) 0%, #1a0e08 65%, #000 100%);
         }
         .reel-frame {
           position: relative;
           height: 100%;
           width: 100%;
           overflow: hidden;
-          background: #000;
+          background: radial-gradient(circle at 50% 30%, var(--accent-dark) 0%, #1a0e08 65%, #000 100%);
         }
         .reel-outer-controls {
           display: none;
         }
         @media (min-width: 769px) {
           .reel-overlay {
-            background: rgba(0, 0, 0, 0.9);
+            background: radial-gradient(circle at 50% 30%, rgba(143, 52, 23, 0.5) 0%, rgba(0,0,0,0.92) 60%);
           }
           .reel-frame {
             height: 92vh;
@@ -161,22 +171,30 @@ export default function QuickBites() {
           }
             
 
-            .reel-swiper .swiper-pagination-bullets {
-              right: 12px;
-            }
-
-            .reel-swiper .swiper-pagination-bullet {
-              background: white;
-              opacity: 0.5;
-            }
-
-              .reel-swiper .swiper-pagination-bullet-active {
-                opacity: 1;
-              }
+            
         }
       `}</style>
 
-      <div style={{ padding: "2rem 0 0.5rem", background: "#fff" }}>
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 55,
+          backdropFilter: isInteracting ? "blur(8px)" : "blur(0px)",
+          WebkitBackdropFilter: isInteracting ? "blur(8px)" : "blur(0px)",
+          transition: "backdrop-filter 0.35s ease",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div
+        style={{
+          position: "relative",
+          zIndex: 60,
+          padding: "2rem 0 0.5rem",
+          background: "transparent",
+        }}
+      >
         <div
           style={{
             margin: "0 auto",
@@ -202,12 +220,9 @@ export default function QuickBites() {
         <div className="qb-swiper-wrapper">
           <Swiper
             className="qb-swiper"
-            modules={[EffectCards, Mousewheel]}
+            modules={[EffectCards]}
             slidesPerView={1}
             spaceBetween={30}
-            mousewheel={{
-              releaseOnEdges: false,
-            }}
             effect="cards"
             grabCursor
             initialSlide={0}
@@ -218,6 +233,9 @@ export default function QuickBites() {
               slideShadows: false,
             }}
             onSlideChange={(swiper) => setActiveCard(swiper.realIndex)}
+            onTouchStart={() => setIsInteracting(true)}
+            onTouchEnd={() => setIsInteracting(false)}
+            onSliderMove={() => setIsInteracting(true)}
           >
             {posts.map((post, index) => (
               <SwiperSlide key={post.id ?? index}>
@@ -229,8 +247,6 @@ export default function QuickBites() {
           </Swiper>
         </div>
         <p className="qb-caption">{posts[activeCard].title}</p>
-
-        <p className="qb-excerpt">{posts[activeCard].excerpt}</p>
       </div>
 
       {/* Reel */}
@@ -238,19 +254,21 @@ export default function QuickBites() {
         <div className="reel-overlay">
           <Swiper
             direction="vertical"
-            modules={[Pagination, Mousewheel, Keyboard]}
+            modules={[Mousewheel, Keyboard]}
             mousewheel={{
               forceToAxis: true,
               releaseOnEdges: false,
             }}
             keyboard={{ enabled: true }}
-            pagination={{ clickable: true }}
             initialSlide={reelIdx}
             className="reel-swiper"
             style={{
               height: "100%",
               width: "100%",
             }}
+            onSlideChange={(swiper) =>
+              trackVisit(posts[swiper.activeIndex]?.id)
+            }
           >
             {posts.map((post) => (
               <SwiperSlide key={post.id}>

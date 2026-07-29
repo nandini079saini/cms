@@ -1,24 +1,11 @@
-import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAllPosts } from "../api/posts";
-import PostCard from "../components/PostCard";
 import QuickBites from "../components/QuickBites";
-
-const API = "http://localhost:3000/api";
+import Snaps from "../components/Snaps";
+import CategoryTabs from "../components/CategoryTabs";
+import PostRow from "../components/PostRow";
 
 export default function Home() {
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [apiCategories, setApiCategories] = useState([]);
-
-  useEffect(() => {
-    fetch(API + "/categories")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.success) setApiCategories(d.categories);
-      })
-      .catch(() => {});
-  }, []);
-
   const { data, isLoading, error } = useQuery({
     queryKey: ["posts"],
     queryFn: getAllPosts,
@@ -57,153 +44,103 @@ export default function Home() {
     (p) => p.status === "published",
   );
 
-  const categories = ["All", ...apiCategories.map((c) => c.name.toLowerCase())];
-
-  const filtered =
-    activeCategory === "All"
-      ? published
-      : published.filter((p) => p.category?.toLowerCase() === activeCategory);
-
-  const categoryGifs = {
-    all: "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExYWp1Mmd1am5hZzFjZXJtZjlleHBkd2ZubzFpNmZ4YW1icXlhbnczdSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/j6ymVVEawon1Kuqchm/giphy.gif",
-
-    ...apiCategories.reduce((acc, c) => {
-      if (c.gif_url) acc[c.name.toLowerCase()] = c.gif_url;
-      return acc;
-    }, {}),
-  };
+  const categoryNames = [
+    ...new Set(published.map((p) => p.category).filter(Boolean)),
+  ];
 
   return (
-    <main style={{ background: "var(--bg)", minHeight: "100vh" }}>
-      <div
-        style={{
-          background:
-            "linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%)",
-          padding: "3.5rem 1.5rem 3rem",
-          textAlign: "center",
-          color: "#fff",
-          overflowX: "hidden",
-        }}
-      >
-        <h1
+    <>
+      <style>{`
+        .quick-layout {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  padding: 2.5rem 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.quick-block {
+  flex: 1;
+  display: flex;
+  justify-content: center; /* horizontal center */
+  align-items: center;     /* vertical center */
+  min-width: 0;
+}
+
+
+
+        @media (max-width: 768px) {
+          .quick-layout {
+            flex-direction: column;
+            align-items: center;
+            padding: 1.5rem 1rem;
+          }
+          
+        }
+      `}</style>
+
+      <main style={{ background: "var(--bg)", minHeight: "100vh" }}>
+        <div
           style={{
-            fontWeight: 700,
-            fontSize: "clamp(1.9rem, 5vw, 3rem)",
-            lineHeight: 1.15,
-            margin: "0 0 0.75rem",
-            letterSpacing: "-0.02em",
+            background:
+              "linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%)",
+            padding: "3.5rem 1.5rem 3rem",
+            textAlign: "center",
+            color: "#fff",
+            overflowX: "hidden",
           }}
         >
-          Discover amazing stories
-        </h1>
-        <p
-          style={{
-            fontSize: "1rem",
-            opacity: 0.88,
-            maxWidth: "440px",
-            margin: "0 auto",
-            lineHeight: 1.6,
-          }}
-        >
-          {published.length} published{" "}
-          {published.length === 1 ? "article" : "articles"} — reporting, essays
-          and ideas.
-        </p>
-      </div>
-
-      <QuickBites />
-
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 50,
-          background: "#fff",
-          borderBottom: "1px solid #ebebeb",
-          padding: "0.5rem 2rem",
-          overflowX: "auto",
-          display: "flex",
-          gap: "1rem",
-          alignItems: "center",
-          scrollbarWidth: "none",
-        }}
-      >
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
+          <h1
             style={{
-              flexShrink: 0,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.6rem",
-              padding: "0.9rem 1.2rem",
-              background: "none",
-              border: "none",
-              borderBottom:
-                activeCategory === cat
-                  ? "3px solid #222"
-                  : "3px solid transparent",
-              color: activeCategory === cat ? "#da1919" : "#717171",
-              fontWeight: activeCategory === cat ? 700 : 500,
+              fontWeight: 700,
+              fontSize: "clamp(1.9rem, 5vw, 3rem)",
+              lineHeight: 1.15,
+              margin: "0 0 0.75rem",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Discover amazing stories
+          </h1>
+
+          <p
+            style={{
               fontSize: "1rem",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              textTransform: "capitalize",
-              transition: "color 0.15s",
-              marginBottom: "-1px",
+              opacity: 0.88,
+              maxWidth: "440px",
+              margin: "0 auto",
+              lineHeight: 1.6,
             }}
           >
-            {categoryGifs[cat.toLowerCase()] && (
-              <img
-                src={categoryGifs[cat.toLowerCase()]}
-                alt=""
-                style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  flexShrink: 0,
-                }}
-              />
-            )}
-            {cat}
-          </button>
-        ))}
-      </div>
+            {published.length} published{" "}
+            {published.length === 1 ? "article" : "articles"} — reporting,
+            essays and ideas.
+          </p>
+        </div>
 
-      <div
-        style={{
-          maxWidth: "1200px",
-          margin: "0 auto",
-          padding: "2rem 1.5rem 5rem",
-        }}
-      >
-        {filtered.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "5rem",
-              color: "#717171",
-              fontSize: "0.95rem",
-            }}
-          >
-            No posts in this category yet.
+        <div className="quick-layout">
+          <div className="quick-block">
+            <Snaps />
           </div>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "2rem 1.5rem",
-            }}
-          >
-            {filtered.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
+          <div className="quick-block">
+            <QuickBites />
           </div>
-        )}
-      </div>
-    </main>
+        </div>
+
+        <CategoryTabs activeCategory="All" />
+
+        <div style={{ padding: "1.5rem 0 5rem" }}>
+          <PostRow title="All Posts" posts={published} />
+
+          {categoryNames.map((cat) => (
+            <PostRow
+              key={cat}
+              title={cat}
+              posts={published.filter((p) => p.category === cat)}
+            />
+          ))}
+        </div>
+      </main>
+    </>
   );
 }

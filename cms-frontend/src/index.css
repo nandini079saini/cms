@@ -32,7 +32,6 @@ body {
   font-family: var(--font-body);
   min-height: 100vh;
   line-height: 1.6;
-  overflow-x: hidden;
   width: 100%;
 }
 
@@ -49,4 +48,11 @@ a {
 ::selection {
   background: var(--accent-soft-2);
   color: var(--accent-dark);
+}
+
+.row-scroll {
+  scrollbar-width: none;
+}
+.row-scroll::-webkit-scrollbar {
+  display: none;
 }

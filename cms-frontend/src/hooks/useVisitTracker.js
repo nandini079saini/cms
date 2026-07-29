@@ -7,12 +7,33 @@ export default function useVisitTracker() {
 
   useEffect(() => {
     const customer = JSON.parse(localStorage.getItem("cms_user") || "null");
-    if (!customer?.id) return; // not logged in, skip tracking
+    if (!customer?.id) return;
+
+    let page = null;
+
+    switch (location.pathname) {
+      case "/profile":
+        page = "Profile";
+        break;
+
+      case "/new-post":
+        page = "New Post";
+        break;
+
+      case "/login":
+        page = "Login";
+        break;
+
+      default:
+        return;
+    }
 
     api
       .post("/api/visit", {
         visitor_id: customer.id,
-        page: location.pathname,
+        page,
+        category: null,
+        post_id: null,
       })
       .catch(() => {});
   }, [location.pathname]);

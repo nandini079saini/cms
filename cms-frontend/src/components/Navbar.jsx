@@ -43,7 +43,7 @@ export default function Navbar() {
               letterSpacing: "-0.01em",
             }}
           >
-            CMSTesting{" "}
+            WordsOfNADS{" "}
           </span>{" "}
         </Link>
 

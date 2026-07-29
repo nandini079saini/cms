@@ -431,7 +431,7 @@ export default function Categories() {
                                     : "var(--muted)",
                           }}
                         >
-                          ● {cap(post.status)}
+                          {cap(post.status)}
                         </span>
                       </td>
                       <td

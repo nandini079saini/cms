@@ -31,6 +31,7 @@ app.get("/api/posts", async (req, res) => {
     const [rows] = await db.query(
       "SELECT * FROM posts ORDER BY priority ASC, created_at DESC",
     );
+
     res.json({ success: true, posts: rows });
   } catch (err) {
     console.error("Error fetching posts:", err.message);
@@ -197,6 +198,8 @@ app.post("/api/customers/signup", async (req, res) => {
   }
 });
 
+app.use(require("./routes/relatedAi"));
+
 app.post("/api/customers/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -212,6 +215,32 @@ app.post("/api/customers/login", async (req, res) => {
 
   const { password: _pw, ...customer } = rows[0];
   res.json({ success: true, customer });
+});
+
+app.get("/api/customers", async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT id, name, email, phone, created_at FROM customers ORDER BY created_at DESC",
+    );
+    res.json({ success: true, customers: rows });
+  } catch (err) {
+    console.error("Error fetching customers:", err.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch customers" });
+  }
+});
+
+app.delete("/api/customers/:id", async (req, res) => {
+  try {
+    await db.query("DELETE FROM customers WHERE id = ?", [req.params.id]);
+    res.json({ success: true, message: "Customer deleted" });
+  } catch (err) {
+    console.error("Error deleting customer:", err.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to delete customer" });
+  }
 });
 
 app.get("/api/customers/:id", async (req, res) => {
@@ -386,6 +415,128 @@ app.delete("/api/posts/:id", async (req, res) => {
   }
 });
 
+// ---------- Quick Bites ----------
+
+app.get("/api/quickbites", async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT * FROM quick_bites ORDER BY priority ASC, created_at DESC",
+    );
+    res.json({ success: true, quickBites: rows });
+  } catch (err) {
+    console.error("Error fetching quick bites:", err.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch quick bites" });
+  }
+});
+
+app.get("/api/quickbites/:id", async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT * FROM quick_bites WHERE id = ?", [
+      req.params.id,
+    ]);
+    if (!rows.length) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Quick bite not found" });
+    }
+    res.json({ success: true, quickBite: rows[0] });
+  } catch (err) {
+    console.error("Error fetching quick bite:", err.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch quick bite" });
+  }
+});
+
+app.post("/api/quickbites", async (req, res) => {
+  const { title, excerpt, gif_url } = req.body;
+
+  if (!title) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Title is required" });
+  }
+
+  if (!gif_url) {
+    return res
+      .status(400)
+      .json({ success: false, message: "GIF URL is required" });
+  }
+
+  try {
+    const [result] = await db.query(
+      "INSERT INTO quick_bites (title, excerpt, gif_url) VALUES (?, ?, ?)",
+      [title, excerpt || null, gif_url],
+    );
+    res.status(201).json({
+      success: true,
+      message: "Quick bite saved successfully",
+      quickBiteId: result.insertId,
+    });
+  } catch (err) {
+    console.error("Error saving quick bite:", err.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to save quick bite" });
+  }
+});
+
+app.put("/api/quickbites/:id", async (req, res) => {
+  const { title, excerpt, gif_url } = req.body;
+
+  if (!title) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Title is required" });
+  }
+
+  try {
+    await db.query(
+      "UPDATE quick_bites SET title = ?, excerpt = ?, gif_url = ? WHERE id = ?",
+      [title, excerpt || null, gif_url || null, req.params.id],
+    );
+    res.json({ success: true, message: "Quick bite updated successfully" });
+  } catch (err) {
+    console.error("Error updating quick bite:", err.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to update quick bite" });
+  }
+});
+
+app.patch("/api/quickbites/reorder", async (req, res) => {
+  const { orderedIds } = req.body;
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    return res
+      .status(400)
+      .json({ success: false, message: "orderedIds array required" });
+  }
+  try {
+    const updates = orderedIds.map((id, index) =>
+      db.query("UPDATE quick_bites SET priority = ? WHERE id = ?", [index, id]),
+    );
+    await Promise.all(updates);
+    res.json({ success: true, message: "Order saved" });
+  } catch (err) {
+    console.error("Error saving order:", err.message);
+    res.status(500).json({ success: false, message: "Failed to save order" });
+  }
+});
+
+app.delete("/api/quickbites/:id", async (req, res) => {
+  try {
+    await db.query("DELETE FROM quick_bites WHERE id = ?", [req.params.id]);
+    res.json({ success: true, message: "Quick bite deleted" });
+  } catch (err) {
+    console.error("Error deleting quick bite:", err.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to delete quick bite" });
+  }
+});
+
 app.get("/api/users", async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -444,12 +595,16 @@ app.delete("/api/users/:id", async (req, res) => {
 });
 
 app.post("/api/visit", async (req, res) => {
-  const { visitor_id, page } = req.body;
+  const { visitor_id, page, category = null, post_id = null } = req.body;
+
   try {
     await db.query(
-      "INSERT INTO customer_visits (visitor_id, page) VALUES (?, ?)",
-      [visitor_id, page || "/"],
+      `INSERT INTO customer_visits
+      (visitor_id, page, category, post_id)
+      VALUES (?, ?, ?, ?)`,
+      [visitor_id, page || "Home", category, post_id],
     );
+
     res.json({ success: true });
   } catch (err) {
     console.error("Error saving visit:", err.message);
@@ -556,6 +711,148 @@ app.delete("/api/categories/:id", async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: "Failed to delete category" });
+  }
+});
+
+const multer = require("multer");
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB
+});
+
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_OWNER = process.env.GITHUB_OWNER;
+const GITHUB_REPO = process.env.GITHUB_REPO;
+const GITHUB_BRANCH = process.env.GITHUB_BRANCH || "main";
+
+async function pushSnapToGithub(buffer, filename) {
+  const path = `snaps/${filename}`;
+  const res = await fetch(
+    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: `Add snap ${filename}`,
+        content: buffer.toString("base64"),
+        branch: GITHUB_BRANCH,
+      }),
+    },
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "GitHub upload failed");
+  }
+  return { url: data.content.download_url, path };
+}
+
+app.post("/api/snaps", upload.single("snap"), async (req, res) => {
+  const { customer_id, caption } = req.body;
+
+  if (!customer_id) {
+    return res
+      .status(400)
+      .json({ success: false, message: "customer_id is required" });
+  }
+  if (!req.file) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Snap image is required" });
+  }
+
+  try {
+    const ext = (req.file.originalname.split(".").pop() || "jpg").toLowerCase();
+    const filename = `${customer_id}_${Date.now()}.${ext}`;
+    const { url, path } = await pushSnapToGithub(req.file.buffer, filename);
+
+    const [result] = await db.query(
+      "INSERT INTO snaps (customer_id, image_url, github_path, caption) VALUES (?, ?, ?, ?)",
+      [customer_id, url, path, caption || null],
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Snap uploaded",
+      snapId: result.insertId,
+      image_url: url,
+    });
+  } catch (err) {
+    console.error("Error creating snap:", err.message);
+    res.status(500).json({ success: false, message: "Failed to upload snap" });
+  }
+});
+
+app.get("/api/snaps", async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT s.id, s.image_url, s.caption, s.created_at,
+             c.id AS customer_id, c.name AS customer_name,
+             COALESCE(SUM(r.reaction_type = 'like'), 0) AS likes,
+             COALESCE(SUM(r.reaction_type = 'smile'), 0) AS smiles,
+             COALESCE(SUM(r.reaction_type = 'tongue'), 0) AS tongues
+      FROM snaps s
+      JOIN customers c ON c.id = s.customer_id
+      LEFT JOIN snap_reactions r ON r.snap_id = s.id
+      GROUP BY s.id
+      ORDER BY s.created_at DESC
+    `);
+    res.json({ success: true, snaps: rows });
+  } catch (err) {
+    console.error("Error fetching snaps:", err.message);
+    res.status(500).json({ success: false, message: "Failed to fetch snaps" });
+  }
+});
+
+app.post("/api/snaps/:id/react", async (req, res) => {
+  const { customer_id, reaction_type } = req.body;
+  const allowed = ["like", "smile", "tongue"];
+
+  if (!customer_id || !allowed.includes(reaction_type)) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid reaction" });
+  }
+
+  try {
+    const [existing] = await db.query(
+      "SELECT id FROM snap_reactions WHERE snap_id = ? AND customer_id = ? AND reaction_type = ?",
+      [req.params.id, customer_id, reaction_type],
+    );
+
+    if (existing.length) {
+      await db.query("DELETE FROM snap_reactions WHERE id = ?", [
+        existing[0].id,
+      ]);
+      return res.json({ success: true, action: "removed" });
+    }
+
+    await db.query(
+      "INSERT INTO snap_reactions (snap_id, customer_id, reaction_type) VALUES (?, ?, ?)",
+      [req.params.id, customer_id, reaction_type],
+    );
+    res.json({ success: true, action: "added" });
+  } catch (err) {
+    console.error("Error saving reaction:", err.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to save reaction" });
+  }
+});
+
+app.delete("/api/snaps/:id", async (req, res) => {
+  try {
+    // Note: this removes the DB row only. The image stays in the GitHub repo
+    // unless you also call the Contents API's DELETE endpoint with the file's
+    // sha (fetch it via a GET on the same content path first).
+    await db.query("DELETE FROM snaps WHERE id = ?", [req.params.id]);
+    res.json({ success: true, message: "Snap deleted" });
+  } catch (err) {
+    console.error("Error deleting snap:", err.message);
+    res.status(500).json({ success: false, message: "Failed to delete snap" });
   }
 });
 

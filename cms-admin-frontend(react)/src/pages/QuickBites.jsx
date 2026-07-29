@@ -4,11 +4,6 @@ import { useState, useEffect } from "react";
 
 const API = "http://localhost:3000/api";
 
-const FILTERS = ["all", "published", "draft", "scheduled"];
-
-function cap(str) {
-  return str ? str.charAt(0).toUpperCase() + str.slice(1) : "";
-}
 function formatDate(dateStr) {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-IN", {
@@ -18,38 +13,35 @@ function formatDate(dateStr) {
   });
 }
 
-export default function Posts() {
-  const [filter, setFilter] = useState("all");
-  const [allPosts, setAllPosts] = useState([]);
+export default function QuickBitesAdmin() {
+  const [allBites, setAllBites] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(API + "/posts")
+    fetch(API + "/quickbites")
       .then((r) => r.json())
       .then((d) => {
-        if (d.success) setAllPosts(d.posts);
+        if (d.success) setAllBites(d.quickBites);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = allPosts.filter((p) => {
-    const matchFilter = filter === "all" || p.status === filter;
+  const filtered = allBites.filter((b) => {
     const q = search.toLowerCase();
-    const matchSearch =
+    return (
       !q ||
-      p.title.toLowerCase().includes(q) ||
-      (p.category || "").toLowerCase().includes(q) ||
-      (p.author || "").toLowerCase().includes(q);
-    return matchFilter && matchSearch;
+      b.title.toLowerCase().includes(q) ||
+      (b.excerpt || "").toLowerCase().includes(q)
+    );
   });
 
-  async function deletePost(id) {
-    if (!confirm("Are you sure you want to delete this post?")) return;
-    const res = await fetch(API + "/posts/" + id, { method: "DELETE" });
+  async function deleteBite(id) {
+    if (!confirm("Are you sure you want to delete this quick bite?")) return;
+    const res = await fetch(API + "/quickbites/" + id, { method: "DELETE" });
     const data = await res.json();
-    if (data.success) setAllPosts((p) => p.filter((x) => x.id !== id));
+    if (data.success) setAllBites((b) => b.filter((x) => x.id !== id));
   }
 
   return (
@@ -65,14 +57,13 @@ export default function Posts() {
         }}
       >
         <Topbar
-          title="Posts"
+          title="Quick Bites"
           searchValue={search}
           onSearchChange={setSearch}
-          searchPlaceholder="Search posts…"
+          searchPlaceholder="Search quick bites…"
         />
         {/* main content */}
         <div style={{ padding: 28, flex: 1 }}>
-          {/* header- filters */}
           <div
             style={{
               display: "flex",
@@ -81,36 +72,32 @@ export default function Posts() {
               marginBottom: 20,
             }}
           >
-            {/* individual filter bar */}
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              {FILTERS.map((f) => (
-                <button
-                  key={f}
-                  style={{
-                    background:
-                      filter === f
-                        ? "rgba(108,99,255,0.15)"
-                        : "var(--surface2)",
-                    border: `1px solid ${
-                      filter === f ? "var(--accent)" : "var(--border)"
-                    }`,
-                    color: filter === f ? "var(--accent2)" : "var(--muted)",
-                    padding: "6px 14px",
-                    borderRadius: 6,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: "Inter, sans-serif",
-                  }}
-                  onClick={() => setFilter(f)}
-                >
-                  {cap(f === "all" ? "All" : f)}
-                </button>
-              ))}
-            </div>
             <span style={{ fontSize: 13, color: "var(--muted)" }}>
-              {filtered.length} post{filtered.length !== 1 ? "s" : ""}
+              {filtered.length} quick bite{filtered.length !== 1 ? "s" : ""}
             </span>
+            <a
+              href="/new-quick-bite"
+              style={{
+                background: "var(--accent)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                padding: "8px 16px",
+                textDecoration: "none",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "Inter, sans-serif",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <span className="material-icons" style={{ fontSize: 16 }}>
+                add
+              </span>
+              New Quick Bite
+            </a>
           </div>
 
           <div
@@ -121,49 +108,46 @@ export default function Posts() {
               overflow: "hidden",
             }}
           >
-            {/* table */}
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["Title", "Category", "Status", "Author", "Date", ""].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        style={{
-                          textAlign: "left",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.8px",
-                          color: "var(--muted)",
-                          padding: "12px 20px",
-                          borderBottom: `1px solid var(--border)`,
-                        }}
-                      >
-                        {h}
-                      </th>
-                    ),
-                  )}
+                  {["GIF", "Title", "Excerpt", "Date", ""].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        textAlign: "left",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.8px",
+                        color: "var(--muted)",
+                        padding: "12px 20px",
+                        borderBottom: `1px solid var(--border)`,
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={5}
                       style={{
                         textAlign: "center",
                         padding: 30,
                         color: "var(--muted)",
                       }}
                     >
-                      Loading posts…
+                      Loading quick bites…
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={5}
                       style={{
                         textAlign: "center",
                         padding: 60,
@@ -178,11 +162,11 @@ export default function Posts() {
                           marginBottom: 12,
                         }}
                       >
-                        article
+                        movie
                       </span>
-                      <p style={{ marginBottom: 16 }}>No posts found.</p>
+                      <p style={{ marginBottom: 16 }}>No quick bites found.</p>
                       <a
-                        href="/new-post"
+                        href="/new-quick-bite"
                         style={{
                           background: "var(--accent)",
                           color: "#fff",
@@ -205,14 +189,14 @@ export default function Posts() {
                         >
                           add
                         </span>
-                        Create your first post
+                        Create your first quick bite
                       </a>
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((post) => (
+                  filtered.map((bite) => (
                     <tr
-                      key={post.id}
+                      key={bite.id}
                       onMouseEnter={(e) =>
                         (e.currentTarget.style.background = "var(--surface2)")
                       }
@@ -222,42 +206,35 @@ export default function Posts() {
                     >
                       <td
                         style={{
-                          padding: "14px 20px",
+                          padding: "10px 20px",
                           borderBottom: `1px solid var(--border)`,
                           verticalAlign: "middle",
                         }}
                       >
-                        {/* post title cell */}
                         <div
                           style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 12,
+                            width: 56,
+                            height: 56,
+                            borderRadius: 8,
+                            overflow: "hidden",
+                            background: "var(--surface2)",
                           }}
                         >
-                          <span
-                            className="material-icons"
-                            style={{ fontSize: 16, color: "#888" }}
-                          >
-                            article
-                          </span>
-                          <div>
-                            <div
+                          {bite.gif_url && (
+                            <img
+                              src={bite.gif_url}
+                              alt={bite.title}
                               style={{
-                                fontWeight: 500,
-                                fontSize: 13,
-                                color: "var(--text)",
-                                marginBottom: 2,
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                                display: "block",
                               }}
-                            >
-                              {post.title}
-                            </div>
-                            <div
-                              style={{ fontSize: 11, color: "var(--muted)" }}
-                            >
-                              /{post.slug || ""}
-                            </div>
-                          </div>
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                            />
+                          )}
                         </div>
                       </td>
                       <td
@@ -265,48 +242,12 @@ export default function Posts() {
                           padding: "14px 20px",
                           borderBottom: `1px solid var(--border)`,
                           verticalAlign: "middle",
-                          color: "var(--muted)",
+                          fontWeight: 500,
                           fontSize: 13,
+                          color: "var(--text)",
                         }}
                       >
-                        {post.category || "—"}
-                      </td>
-                      <td
-                        style={{
-                          padding: "14px 20px",
-                          borderBottom: `1px solid var(--border)`,
-                          verticalAlign: "middle",
-                        }}
-                      >
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            padding: "3px 9px",
-                            borderRadius: 20,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            background:
-                              post.status === "published"
-                                ? "rgba(52,211,153,0.12)"
-                                : post.status === "draft"
-                                  ? "rgba(251,191,36,0.12)"
-                                  : post.status === "scheduled"
-                                    ? "rgba(108,99,255,0.15)"
-                                    : "var(--surface2)",
-                            color:
-                              post.status === "published"
-                                ? "var(--success)"
-                                : post.status === "draft"
-                                  ? "var(--warn)"
-                                  : post.status === "scheduled"
-                                    ? "var(--accent2)"
-                                    : "var(--muted)",
-                          }}
-                        >
-                          {cap(post.status)}
-                        </span>
+                        {bite.title}
                       </td>
                       <td
                         style={{
@@ -315,9 +256,13 @@ export default function Posts() {
                           verticalAlign: "middle",
                           color: "var(--muted)",
                           fontSize: 13,
+                          maxWidth: 320,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
                         }}
                       >
-                        {post.author || "—"}
+                        {bite.excerpt || "—"}
                       </td>
                       <td
                         style={{
@@ -328,7 +273,7 @@ export default function Posts() {
                           fontSize: 12,
                         }}
                       >
-                        {formatDate(post.created_at)}
+                        {formatDate(bite.created_at)}
                       </td>
                       <td
                         style={{
@@ -337,9 +282,7 @@ export default function Posts() {
                           verticalAlign: "middle",
                         }}
                       >
-                        {/* row actions */}
                         <div style={{ display: "flex", gap: 8 }}>
-                          {/* row button */}
                           <button
                             style={{
                               fontSize: 11,
@@ -353,7 +296,7 @@ export default function Posts() {
                               fontFamily: "Inter, sans-serif",
                             }}
                             onClick={() =>
-                              (window.location.href = `/new-post?id=${post.id}`)
+                              (window.location.href = `/new-quick-bite?id=${bite.id}`)
                             }
                           >
                             Edit
@@ -370,7 +313,7 @@ export default function Posts() {
                               cursor: "pointer",
                               fontFamily: "Inter, sans-serif",
                             }}
-                            onClick={() => deletePost(post.id)}
+                            onClick={() => deleteBite(bite.id)}
                           >
                             Delete
                           </button>

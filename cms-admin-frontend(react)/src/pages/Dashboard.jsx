@@ -349,7 +349,7 @@ export default function Dashboard() {
                           }}
                         >
                           <span style={getBadge(post.status)}>
-                            ● {cap(post.status)}
+                            {cap(post.status)}
                           </span>
                         </td>
                         <td

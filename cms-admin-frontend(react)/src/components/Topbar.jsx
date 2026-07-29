@@ -5,6 +5,7 @@ export default function Topbar({
   title,
   showSearch = true,
   showNewPost = true,
+  showNewQuickBite = true,
   showIcons = false,
   backTo,
   actions,
@@ -181,6 +182,32 @@ export default function Topbar({
               add
             </span>
             New Post
+          </Link>
+        )}
+
+        {showNewQuickBite && (
+          <Link
+            to="/new-quick-bite"
+            style={{
+              background: "var(--accent)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "8px 16px",
+              textDecoration: "none",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "Inter, sans-serif",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span className="material-icons" style={{ fontSize: 16 }}>
+              add
+            </span>
+            New Quick Bite
           </Link>
         )}
       </div>

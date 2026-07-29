@@ -414,6 +414,7 @@ export default function NewPost() {
           title={postId ? "Edit Post" : "New Post"}
           backTo="/posts"
           showNewPost={false}
+          showNewQuickBite={false}
           actions={topbarActions}
         />
         {/* content */}

@@ -4,9 +4,12 @@ import Dashboard from "./pages/Dashboard";
 import Posts from "./pages/Posts";
 import Drafts from "./pages/Drafts";
 import Categories from "./pages/Categories";
-import AddUser from "./pages/AddUser";
+import AddAdmin from "./pages/AddAdmin";
 import NewPost from "./pages/NewPost";
 import ManageCategories from "./pages/ManageCategories";
+import QuickBites from "./pages/QuickBites";
+import NewQuickBite from "./pages/NewQuickBite";
+import Users from "./pages/Users";
 
 function RequireAuth({ children }) {
   const user = localStorage.getItem("user");
@@ -51,10 +54,10 @@ export default function App() {
           }
         />
         <Route
-          path="/add-user"
+          path="/add-admin"
           element={
             <RequireAuth>
-              <AddUser />
+              <AddAdmin />
             </RequireAuth>
           }
         />
@@ -71,6 +74,30 @@ export default function App() {
           element={
             <RequireAuth>
               <ManageCategories />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/quick-bites"
+          element={
+            <RequireAuth>
+              <QuickBites />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/new-quick-bite"
+          element={
+            <RequireAuth>
+              <NewQuickBite />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <RequireAuth>
+              <Users />
             </RequireAuth>
           }
         />

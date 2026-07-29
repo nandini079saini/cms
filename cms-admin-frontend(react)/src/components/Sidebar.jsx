@@ -101,6 +101,10 @@ export default function Sidebar() {
           <span className="material-icons">article</span>
           Posts
         </NavLink>
+        <NavLink to="/quick-bites" style={navItemStyle}>
+          <span className="material-icons">article</span>
+          Quick Bites
+        </NavLink>
 
         <NavLink to="/drafts" style={navItemStyle}>
           <span className="material-icons">edit_note</span>
@@ -110,11 +114,6 @@ export default function Sidebar() {
         <NavLink to="/categories" style={navItemStyle}>
           <span className="material-icons">folder</span>
           Categories
-        </NavLink>
-
-        <NavLink to="/manage-categories" style={navItemStyle}>
-          <span className="material-icons">perm_media</span>
-          Manage/Add Categories
         </NavLink>
       </div>
 
@@ -138,29 +137,24 @@ export default function Sidebar() {
           Manage
         </div>
 
-        <NavLink to="/add-user" style={navItemStyle}>
+        <NavLink to="/add-admin" style={navItemStyle}>
           <span className="material-icons">group</span>
-          Add User
+          Add Admin
+        </NavLink>
+
+        <NavLink to="/manage-categories" style={navItemStyle}>
+          <span className="material-icons">perm_media</span>
+          Add Categories
+        </NavLink>
+
+        <NavLink to="/users" style={navItemStyle}>
+          <span className="material-icons">group</span>
+          Users
         </NavLink>
 
         <NavLink to="/" style={navItemStyle}>
           <span className="material-icons">comment</span>
           Comments
-        </NavLink>
-
-        <NavLink to="/" style={navItemStyle}>
-          <span className="material-icons">extension</span>
-          Plugins
-        </NavLink>
-
-        <NavLink to="/" style={navItemStyle}>
-          <span className="material-icons">palette</span>
-          Appearance
-        </NavLink>
-
-        <NavLink to="/" style={navItemStyle}>
-          <span className="material-icons">settings</span>
-          Settings
         </NavLink>
       </div>
 

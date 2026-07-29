@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
+import CategoryPage from "./pages/CategoryPage";
 import PostDetail from "./pages/PostDetail";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
@@ -24,10 +25,13 @@ function AppInner() {
           element={user ? <Home /> : <Navigate to="/login" replace />}
         />
         <Route
+          path="/category/:categoryName"
+          element={user ? <CategoryPage /> : <Navigate to="/login" replace />}
+        />
+        <Route
           path="/post/:id"
           element={user ? <PostDetail /> : <Navigate to="/login" replace />}
         />
-
         <Route path="/profile" element={<Profile />} />
       </Routes>
     </>
