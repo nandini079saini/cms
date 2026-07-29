@@ -11,8 +11,9 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "cms-user.netlify.app",
-      "cms-admin-portal.netlify.app",
+      "http://localhost:5174",
+      "https://cms-user.netlify.app",
+      "https://cms-admin-portal.netlify.app",
     ],
     credentials: true,
   }),
