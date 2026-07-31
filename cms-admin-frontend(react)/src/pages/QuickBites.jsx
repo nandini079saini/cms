@@ -2,8 +2,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { useState, useEffect } from "react";
 
-const API = "http://localhost:3000/api";
-
+const API = `${import.meta.env.VITE_API_URL}/api`;
 function formatDate(dateStr) {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-IN", {

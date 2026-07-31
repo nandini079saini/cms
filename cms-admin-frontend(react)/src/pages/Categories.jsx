@@ -4,8 +4,7 @@ import Toast from "../components/Toast";
 
 import { useState, useEffect, useRef } from "react";
 
-const API = "http://localhost:3000/api";
-
+const API = `${import.meta.env.VITE_API_URL}/api`;
 function cap(str) {
   return str ? str.charAt(0).toUpperCase() + str.slice(1) : "";
 }

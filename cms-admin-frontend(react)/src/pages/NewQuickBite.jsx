@@ -4,8 +4,7 @@ import Toast from "../components/Toast";
 import { useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 
-const API = "http://localhost:3000/api";
-
+const API = `${import.meta.env.VITE_API_URL}/api`;
 export default function NewQuickBite() {
   const [params] = useSearchParams();
   const biteId = params.get("id");

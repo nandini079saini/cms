@@ -3,8 +3,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import Toast from "../components/Toast";
 
-const API = "http://localhost:3000/api";
-
+const API = `${import.meta.env.VITE_API_URL}/api`;
 function stripHtml(html) {
   return html
     .replace(/<[^>]*>/g, " ")

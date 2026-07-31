@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axiosInstance";
 
-const API = "http://localhost:3000/api";
-
+const API = `${import.meta.env.VITE_API_URL}/api`;
 export default function CategoryTabs({ activeCategory = "All" }) {
   const navigate = useNavigate();
   const [apiCategories, setApiCategories] = useState([]);

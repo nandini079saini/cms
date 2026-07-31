@@ -4,8 +4,7 @@ import Toast from "../components/Toast";
 import { useSearchParams } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 
-const API = "http://localhost:3000/api";
-
+const API = `${import.meta.env.VITE_API_URL}/api`;
 const AUTHORS = ["Nandini S.", "Rishank T.", "Harsh K.", "Person R."];
 const TOOLBAR = [
   { cmd: "bold", icon: "format_bold" },

@@ -13,7 +13,7 @@ app.use(
       "http://localhost:5173",
       "http://localhost:5174",
       "https://cms-user.netlify.app",
-      "https://cms-admin-portal.netlify.app/",
+      "https://cms-admin-portal.netlify.app",
     ],
     credentials: true,
   }),
