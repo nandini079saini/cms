@@ -221,7 +221,7 @@ export default function Sidebar() {
                 color: "var(--muted)",
               }}
             >
-              {user
+              {user?.role
                 ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
                 : "User"}
             </div>
