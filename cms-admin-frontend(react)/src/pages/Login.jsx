@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/useAuth";
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -9,6 +11,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   async function doLogin() {
     setError("");
@@ -25,7 +28,7 @@ export default function Login() {
       });
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem("user", JSON.stringify(data.user));
+        login(data.user);
         navigate("/");
       } else {
         setError("Invalid email or password.");
@@ -36,6 +39,7 @@ export default function Login() {
       setLoading(false);
     }
   }
+
   return (
     <div
       style={{
@@ -46,7 +50,6 @@ export default function Login() {
         background: "var(--bg)",
       }}
     >
-      {/* card */}
       <div
         style={{
           width: 420,

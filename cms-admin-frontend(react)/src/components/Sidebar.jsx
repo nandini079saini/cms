@@ -1,16 +1,9 @@
-import { NavLink } from "react-router-dom";
-import { useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/useAuth";
 
 export default function Sidebar() {
-  const [user] = useState(() => {
-    try {
-      const stored = localStorage.getItem("user");
-      return stored ? JSON.parse(stored) : null;
-    } catch (err) {
-      console.error("Invalid user data:", err);
-      return null;
-    }
-  });
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const initials = (name = "") =>
     name
@@ -162,10 +155,9 @@ export default function Sidebar() {
       <div
         style={{
           marginTop: "auto",
-          padding: "16px 12px",
+          padding: "14px 12px",
           borderTop: "1px solid var(--border)",
           fontSize: "13px",
-          position: "relative",
         }}
       >
         <div
@@ -173,9 +165,8 @@ export default function Sidebar() {
             display: "flex",
             alignItems: "center",
             gap: "10px",
-            padding: "10px 12px",
-            borderRadius: "8px",
-            cursor: "pointer",
+            padding: "8px 8px",
+            marginBottom: "8px",
           }}
         >
           <div
@@ -196,12 +187,7 @@ export default function Sidebar() {
             {user ? initials(user.name) : "--"}
           </div>
 
-          <div
-            style={{
-              flex: 1,
-              overflow: "hidden",
-            }}
-          >
+          <div style={{ flex: 1, overflow: "hidden" }}>
             <div
               style={{
                 fontWeight: "600",
@@ -214,21 +200,40 @@ export default function Sidebar() {
             >
               {user?.name || "Loading..."}
             </div>
-
-            <div
-              style={{
-                fontSize: "11px",
-                color: "var(--muted)",
-              }}
-            >
+            <div style={{ fontSize: "11px", color: "var(--muted)" }}>
               {user?.role
                 ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
                 : "User"}
             </div>
           </div>
-
-          <span className="material-icons">more_horiz</span>
         </div>
+
+        <button
+          onClick={() => {
+            logout();
+            navigate("/login");
+          }}
+          style={{
+            width: "100%",
+            background: "var(--surface2)",
+            border: "1px solid var(--border)",
+            borderRadius: "8px",
+            padding: "9px 0",
+            fontSize: "0.82rem",
+            fontWeight: 600,
+            color: "var(--text)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+          }}
+        >
+          <span className="material-icons" style={{ fontSize: 16 }}>
+            logout
+          </span>
+          Sign Out
+        </button>
       </div>
     </div>
   );
