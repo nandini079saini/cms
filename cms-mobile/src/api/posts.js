@@ -1,7 +1,7 @@
 import api from "./axiosInstance";
 
 export const getAllPosts = async () => {
-  const response = await api.get("/api/posts");
+  const response = await api.get("/api/posts?limit=20");
   return response.data;
 };
 

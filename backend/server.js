@@ -38,14 +38,34 @@ setInterval(async () => {
 
 app.get("/api/posts", async (req, res) => {
   try {
-    const [rows] = await db.query(
-      "SELECT * FROM posts ORDER BY priority ASC, created_at DESC",
-    );
+    const limit = parseInt(req.query.limit);
 
-    res.json({ success: true, posts: rows });
+    let query = `
+      SELECT *
+      FROM posts
+      WHERE status = 'published'
+      ORDER BY priority ASC, published_at DESC
+    `;
+
+    const params = [];
+
+    if (!isNaN(limit)) {
+      query += " LIMIT ?";
+      params.push(limit);
+    }
+
+    const [rows] = await db.query(query, params);
+
+    res.json({
+      success: true,
+      posts: rows,
+    });
   } catch (err) {
     console.error("Error fetching posts:", err.message);
-    res.status(500).json({ success: false, message: "Failed to fetch posts" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch posts",
+    });
   }
 });
 
