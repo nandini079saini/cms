@@ -1,0 +1,32 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts",
+    "src/api/posts.js",
+    "src/api/snaps.js",
+    "src/api/quickbites.js",
+    "components/ThemedView.js",
+    "components/ParallaxScrollView.js",
+    "components/ThemedText.js",
+    "components/HelloWave.js",
+    "components/HapticTab.js",
+    "components/ExternalLink.js",
+    "constants/theme.js",
+    "app/(tabs)/profile.jsx",
+    "app/(tabs)/snaps.jsx",
+    "app/(tabs)/explore.jsx",
+    "app/(tabs)/index.jsx",
+    "app/(tabs)/explore.jsx",
+    "app/(tabs)/_layout.jsx",
+    "components/ui/collapsible.js"
+  ]
+}
