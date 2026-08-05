@@ -1,11 +1,12 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useAuth } from "../context/AuthContext";
 import { Colors } from "../../constants/theme";
 
-export const PostCard = ({ post }) => {
+function PostCardComponent({ post }) {
   const router = useRouter();
   const { bookmarks, toggleBookmark, likedPosts, toggleLike } = useAuth();
 
@@ -30,7 +31,9 @@ export const PostCard = ({ post }) => {
         <Image
           source={{ uri: post.gif_url }}
           style={styles.image}
-          resizeMode="cover"
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
         />
       ) : null}
 
@@ -88,7 +91,13 @@ export const PostCard = ({ post }) => {
       </View>
     </TouchableOpacity>
   );
-};
+}
+
+// Skip re-rendering a card when unrelated parent state changes (search text,
+// other cards' like/bookmark toggles, refetches that return the same post
+// object by reference, etc). Only re-renders if this specific post's data
+// actually changes.
+export const PostCard = React.memo(PostCardComponent);
 
 const styles = StyleSheet.create({
   card: {

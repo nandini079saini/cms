@@ -1,9 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
@@ -15,9 +15,12 @@ import { getAllPosts } from "../../src/api/posts";
 import { PostCard } from "../../src/components/PostCard";
 import { Colors } from "../../constants/theme";
 
+const PAGE_SIZE = 5;
+
 export default function CategoryScreen() {
   const { category } = useLocalSearchParams();
   const router = useRouter();
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const { data, isLoading } = useQuery({
     queryKey: ["posts"],
@@ -31,6 +34,49 @@ export default function CategoryScreen() {
     (p) => p.category?.toLowerCase() === category?.toLowerCase(),
   );
 
+  // Reset pagination whenever the category param changes
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [category]);
+
+  const visiblePosts = categoryPosts.slice(0, visibleCount);
+  const hasMore = visibleCount < categoryPosts.length;
+
+  const ListHeader = (
+    <View style={styles.banner}>
+      <Text style={styles.bannerCategory}>{category?.toUpperCase()}</Text>
+      <Text style={styles.bannerSubtitle}>
+        {categoryPosts.length} post{categoryPosts.length === 1 ? "" : "s"}{" "}
+        available in this section
+      </Text>
+    </View>
+  );
+
+  const ListEmpty = isLoading ? (
+    <ActivityIndicator
+      size="large"
+      color={Colors.light.primary}
+      style={{ marginVertical: 30 }}
+    />
+  ) : (
+    <View style={styles.emptyBox}>
+      <Text style={styles.emptyText}>No articles in this category yet.</Text>
+    </View>
+  );
+
+  const ListFooter =
+    !isLoading && hasMore ? (
+      <TouchableOpacity
+        style={styles.loadMoreBtn}
+        onPress={() => setVisibleCount((c) => c + PAGE_SIZE)}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.loadMoreText}>
+          Load more ({categoryPosts.length - visibleCount} left)
+        </Text>
+      </TouchableOpacity>
+    ) : null;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.headerRow}>
@@ -40,34 +86,21 @@ export default function CategoryScreen() {
         <Text style={styles.headerTitle}>{category} Articles</Text>
       </View>
 
-      <ScrollView
+      <FlatList
         style={styles.container}
         contentContainerStyle={styles.content}
-      >
-        <View style={styles.banner}>
-          <Text style={styles.bannerCategory}>{category?.toUpperCase()}</Text>
-          <Text style={styles.bannerSubtitle}>
-            {categoryPosts.length} post{categoryPosts.length === 1 ? "" : "s"}{" "}
-            available in this section
-          </Text>
-        </View>
-
-        {isLoading ? (
-          <ActivityIndicator
-            size="large"
-            color={Colors.light.primary}
-            style={{ marginVertical: 30 }}
-          />
-        ) : categoryPosts.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>
-              No articles in this category yet.
-            </Text>
-          </View>
-        ) : (
-          categoryPosts.map((post) => <PostCard key={post.id} post={post} />)
-        )}
-      </ScrollView>
+        data={visiblePosts}
+        keyExtractor={(post) => String(post.id)}
+        renderItem={({ item }) => <PostCard post={item} />}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={ListEmpty}
+        ListFooterComponent={ListFooter}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        removeClippedSubviews
+        updateCellsBatchingPeriod={50}
+      />
     </SafeAreaView>
   );
 }
@@ -128,5 +161,20 @@ const styles = StyleSheet.create({
   emptyText: {
     color: Colors.light.muted,
     fontSize: 14,
+  },
+  loadMoreBtn: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    alignItems: "center",
+    backgroundColor: Colors.light.surface,
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.light.primary,
   },
 });

@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -20,8 +21,11 @@ import { PostCard } from "../../src/components/PostCard";
 import { QuickBitesSection } from "../../src/components/QuickBitesSection";
 import { SnapsBar } from "../../src/components/SnapsBar";
 
+const PAGE_SIZE = 10;
+
 export default function HomeScreen() {
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const {
     data: postsData,
@@ -47,6 +51,7 @@ export default function HomeScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([refetchPosts(), refetchQuickBites(), refetchSnaps()]);
+    setVisibleCount(PAGE_SIZE);
     setRefreshing(false);
   };
 
@@ -62,16 +67,102 @@ export default function HomeScreen() {
       ? publishedPosts
       : publishedPosts.filter((p) => p.category === selectedCategory);
 
+  // Reset pagination whenever the category filter changes
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [selectedCategory]);
+
+  const visiblePosts = filteredPosts.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredPosts.length;
+
   const quickBites = quickBitesData?.quickBites || [];
   const snaps = snapsData?.snaps || [];
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const loadMore = () => {
+    if (!hasMore || loadingMore) return;
+
+    setLoadingMore(true);
+
+    setVisibleCount((count) => count + PAGE_SIZE);
+
+    setTimeout(() => {
+      setLoadingMore(false);
+    }, 300);
+  };
+
+  const ListHeader = (
+    <>
+      {/* Banner */}
+      <View style={styles.heroBanner}>
+        <Text style={styles.heroTitle}>Discover Amazing Stories</Text>
+        <Text style={styles.heroSubtitle}>
+          {publishedPosts.length} article
+          {publishedPosts.length === 1 ? "" : "s"} — reporting, essays, and
+          ideas.
+        </Text>
+      </View>
+
+      {/* Snaps Bar */}
+      <SnapsBar snaps={snaps} onRefresh={refetchSnaps} />
+
+      {/* Quick Bites */}
+      <QuickBitesSection quickBites={quickBites} />
+
+      {/* Category Tabs */}
+      <CategoryTabs
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+      />
+
+      {/* Feed Title */}
+      <View style={styles.feedHeader}>
+        <Text style={styles.feedTitle}>
+          {selectedCategory === "All"
+            ? "Latest Stories"
+            : `${selectedCategory} Stories`}
+        </Text>
+        <Text style={styles.feedCount}>{filteredPosts.length} posts</Text>
+      </View>
+    </>
+  );
+
+  const ListEmpty = isPostsLoading ? (
+    <View style={styles.loadingBox}>
+      <ActivityIndicator size="large" color={Colors.light.primary} />
+      <Text style={styles.loadingText}>Fetching stories...</Text>
+    </View>
+  ) : (
+    <View style={styles.emptyBox}>
+      <Text style={styles.emptyTitle}>No posts found</Text>
+      <Text style={styles.emptySubtitle}>
+        Check back later or try selecting another category.
+      </Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header />
 
-      <ScrollView
+      <FlatList
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
+        data={visiblePosts}
+        keyExtractor={(post) => String(post.id)}
+        renderItem={({ item }) => <PostCard post={item} />}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={ListEmpty}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.loadingMore}>
+              <ActivityIndicator size="small" color={Colors.light.primary} />
+            </View>
+          ) : null
+        }
+        // Virtualization tuning — only render what's near the viewport
+        // instead of everything that's been paginated in.
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -79,57 +170,14 @@ export default function HomeScreen() {
             colors={[Colors.light.primary]}
           />
         }
-      >
-        {/* Banner */}
-        <View style={styles.heroBanner}>
-          <Text style={styles.heroTitle}>Discover Amazing Stories</Text>
-          <Text style={styles.heroSubtitle}>
-            {publishedPosts.length} article
-            {publishedPosts.length === 1 ? "" : "s"} — reporting, essays, and
-            ideas.
-          </Text>
-        </View>
-
-        {/* Snaps Bar */}
-        <SnapsBar snaps={snaps} onRefresh={refetchSnaps} />
-
-        {/* Quick Bites */}
-        <QuickBitesSection quickBites={quickBites} />
-
-        {/* Category Tabs */}
-        <CategoryTabs
-          categories={categories}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-        />
-
-        {/* Feed Title */}
-        <View style={styles.feedHeader}>
-          <Text style={styles.feedTitle}>
-            {selectedCategory === "All"
-              ? "Latest Stories"
-              : `${selectedCategory} Stories`}
-          </Text>
-          <Text style={styles.feedCount}>{filteredPosts.length} posts</Text>
-        </View>
-
-        {/* Posts Feed */}
-        {isPostsLoading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={Colors.light.primary} />
-            <Text style={styles.loadingText}>Fetching stories...</Text>
-          </View>
-        ) : filteredPosts.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>No posts found</Text>
-            <Text style={styles.emptySubtitle}>
-              Check back later or try selecting another category.
-            </Text>
-          </View>
-        ) : (
-          filteredPosts.map((post) => <PostCard key={post.id} post={post} />)
-        )}
-      </ScrollView>
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        removeClippedSubviews
+        updateCellsBatchingPeriod={50}
+      />
     </SafeAreaView>
   );
 }
@@ -208,5 +256,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.light.muted,
     textAlign: "center",
+  },
+
+  loadingMore: {
+    paddingVertical: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

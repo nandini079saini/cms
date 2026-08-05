@@ -3,6 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const db = require("./db");
+const { pushSnapToGithub, processGifUrl } = require("./utils/githubGif");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -130,6 +131,8 @@ app.post("/api/posts", async (req, res) => {
   const published_at = status === "published" ? new Date() : null;
 
   try {
+    const optimizedGifUrl = await processGifUrl(gif_url);
+
     const [result] = await db.query(
       "INSERT INTO posts (title, slug, excerpt, content, category, tags, author, status, scheduled_at, published_at,gif_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)",
       [
@@ -143,7 +146,7 @@ app.post("/api/posts", async (req, res) => {
         status || "draft",
         scheduled_at || null,
         published_at,
-        gif_url || null,
+        optimizedGifUrl,
       ],
     );
     res.status(201).json({
@@ -373,6 +376,8 @@ app.put("/api/posts/:id", async (req, res) => {
   const published_at = status === "published" ? new Date() : null;
 
   try {
+    const optimizedGifUrl = await processGifUrl(gif_url);
+
     await db.query(
       `UPDATE posts SET
         title = ?, slug = ?, excerpt = ?, content = ?,
@@ -390,7 +395,7 @@ app.put("/api/posts/:id", async (req, res) => {
         status,
         scheduled_at || null,
         published_at,
-        gif_url,
+        optimizedGifUrl,
         req.params.id,
       ],
     );
@@ -496,9 +501,11 @@ app.post("/api/quickbites", async (req, res) => {
   }
 
   try {
+    const optimizedGifUrl = await processGifUrl(gif_url);
+
     const [result] = await db.query(
       "INSERT INTO quick_bites (title, excerpt, gif_url) VALUES (?, ?, ?)",
-      [title, excerpt || null, gif_url],
+      [title, excerpt || null, optimizedGifUrl],
     );
     res.status(201).json({
       success: true,
@@ -523,9 +530,11 @@ app.put("/api/quickbites/:id", async (req, res) => {
   }
 
   try {
+    const optimizedGifUrl = gif_url ? await processGifUrl(gif_url) : null;
+
     await db.query(
       "UPDATE quick_bites SET title = ?, excerpt = ?, gif_url = ? WHERE id = ?",
-      [title, excerpt || null, gif_url || null, req.params.id],
+      [title, excerpt || null, optimizedGifUrl, req.params.id],
     );
     res.json({ success: true, message: "Quick bite updated successfully" });
   } catch (err) {
@@ -750,35 +759,9 @@ const upload = multer({
   limits: { fileSize: 8 * 1024 * 1024 }, // 8MB
 });
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_OWNER = process.env.GITHUB_OWNER;
-const GITHUB_REPO = process.env.GITHUB_REPO;
-const GITHUB_BRANCH = process.env.GITHUB_BRANCH || "main";
-
-async function pushSnapToGithub(buffer, filename) {
-  const path = `snaps/${filename}`;
-  const res = await fetch(
-    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`,
-    {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${GITHUB_TOKEN}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: `Add snap ${filename}`,
-        content: buffer.toString("base64"),
-        branch: GITHUB_BRANCH,
-      }),
-    },
-  );
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || "GitHub upload failed");
-  }
-  return { url: data.content.download_url, path };
-}
+// GitHub push + GIF fetch/optimize/rehost logic lives in
+// ./utils/githubGif.js (pushSnapToGithub, processGifUrl) so the same code
+// is shared with the one-off backfill script (scripts/backfillGifs.js).
 
 app.post("/api/snaps", upload.single("snap"), async (req, res) => {
   const { customer_id, caption } = req.body;

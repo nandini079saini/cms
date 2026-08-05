@@ -1,7 +1,10 @@
 import api from "./axiosInstance";
 
 export const getAllPosts = async () => {
-  const response = await api.get("/api/posts?limit=20");
+  // No limit param -> server.js returns ALL published posts.
+  // Pagination is now handled client-side (see home/explore/category screens)
+  // so the app doesn't mount 100+ cards at once.
+  const response = await api.get("/api/posts");
   return response.data;
 };
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useAuth } from "../context/AuthContext";
@@ -26,9 +26,6 @@ export const Header = ({ showBack = false, title }) => {
           </TouchableOpacity>
         ) : (
           <View style={styles.brandRow}>
-            <View style={styles.logoBadge}>
-              <Text style={styles.logoText}>C</Text>
-            </View>
             <Text style={styles.brandTitle}>CMS Stories</Text>
           </View>
         )}

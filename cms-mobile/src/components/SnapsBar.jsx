@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
-  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { Colors } from "../../constants/theme";
 import { reactToSnap } from "../api/snaps";
 import { useAuth } from "../context/AuthContext";
@@ -51,6 +51,9 @@ export const SnapsBar = ({ snaps, onRefresh }) => {
               <Image
                 source={{ uri: snap.image_url }}
                 style={styles.avatarImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
               />
             </View>
             <Text style={styles.customerName} numberOfLines={1}>
@@ -79,7 +82,9 @@ export const SnapsBar = ({ snaps, onRefresh }) => {
             <Image
               source={{ uri: activeSnap.image_url }}
               style={styles.fullSnapImage}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="memory-disk"
+              transition={150}
             />
 
             <View style={styles.viewerFooter}>

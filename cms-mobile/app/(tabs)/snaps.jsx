@@ -1,29 +1,34 @@
 import { useQuery } from "@tanstack/react-query";
-import React from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Image,
+  FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../constants/theme";
 import { getAllSnaps, reactToSnap } from "../../src/api/snaps";
 import { Header } from "../../src/components/Header";
 import { useAuth } from "../../src/context/AuthContext";
 
+const PAGE_SIZE = 5;
+
 export default function SnapsScreen() {
   const { user } = useAuth();
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["snaps"],
     queryFn: getAllSnaps,
   });
 
   const snaps = data?.snaps || [];
+  const visibleSnaps = snaps.slice(0, visibleCount);
+  const hasMore = visibleCount < snaps.length;
 
   const handleReact = async (snapId, reactionType) => {
     if (!user) return;
@@ -35,100 +40,131 @@ export default function SnapsScreen() {
     }
   };
 
+  const handleRefresh = async () => {
+    setVisibleCount(PAGE_SIZE);
+    await refetch();
+  };
+
+  const renderSnap = ({ item: snap }) => (
+    <View style={styles.snapCard}>
+      <View style={styles.cardHeader}>
+        <View style={styles.authorBadge}>
+          <Text style={styles.authorLetter}>
+            {snap.customer_name
+              ? snap.customer_name.charAt(0).toUpperCase()
+              : "U"}
+          </Text>
+        </View>
+        <View>
+          <Text style={styles.authorName}>
+            {snap.customer_name || "Community Member"}
+          </Text>
+          <Text style={styles.timeAgo}>
+            {snap.created_at
+              ? new Date(snap.created_at).toLocaleDateString()
+              : ""}
+          </Text>
+        </View>
+      </View>
+
+      <Image
+        source={{ uri: snap.image_url }}
+        style={styles.snapImage}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
+      />
+
+      {snap.caption ? <Text style={styles.caption}>{snap.caption}</Text> : null}
+
+      <View style={styles.reactionsRow}>
+        <TouchableOpacity
+          style={styles.reactionBtn}
+          onPress={() => handleReact(snap.id, "like")}
+        >
+          <Text style={styles.emoji}>❤️</Text>
+          <Text style={styles.count}>{snap.likes || 0}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.reactionBtn}
+          onPress={() => handleReact(snap.id, "smile")}
+        >
+          <Text style={styles.emoji}>😊</Text>
+          <Text style={styles.count}>{snap.smiles || 0}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.reactionBtn}
+          onPress={() => handleReact(snap.id, "tongue")}
+        >
+          <Text style={styles.emoji}>😜</Text>
+          <Text style={styles.count}>{snap.tongues || 0}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const ListHeader = (
+    <View style={styles.introHeader}>
+      <Text style={styles.introTitle}>Snaps Feed</Text>
+      <Text style={styles.introSubtitle}>
+        Visual highlights shared by the community
+      </Text>
+    </View>
+  );
+
+  const ListEmpty = isLoading ? (
+    <ActivityIndicator
+      size="large"
+      color={Colors.light.primary}
+      style={{ marginVertical: 30 }}
+    />
+  ) : (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyText}>No snaps shared yet.</Text>
+    </View>
+  );
+
+  const ListFooter =
+    !isLoading && hasMore ? (
+      <TouchableOpacity
+        style={styles.loadMoreBtn}
+        onPress={() => setVisibleCount((c) => c + PAGE_SIZE)}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.loadMoreText}>
+          Load more ({snaps.length - visibleCount} left)
+        </Text>
+      </TouchableOpacity>
+    ) : null;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header title="Community Snaps" />
 
-      <ScrollView
+      <FlatList
         style={styles.container}
         contentContainerStyle={styles.content}
+        data={visibleSnaps}
+        keyExtractor={(snap) => String(snap.id)}
+        renderItem={renderSnap}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={ListEmpty}
+        ListFooterComponent={ListFooter}
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
-            onRefresh={refetch}
+            onRefresh={handleRefresh}
             colors={[Colors.light.primary]}
           />
         }
-      >
-        <View style={styles.introHeader}>
-          <Text style={styles.introTitle}>Snaps Feed</Text>
-          <Text style={styles.introSubtitle}>
-            Visual highlights shared by the community
-          </Text>
-        </View>
-
-        {isLoading ? (
-          <ActivityIndicator
-            size="large"
-            color={Colors.light.primary}
-            style={{ marginVertical: 30 }}
-          />
-        ) : snaps.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No snaps shared yet.</Text>
-          </View>
-        ) : (
-          snaps.map((snap) => (
-            <View key={snap.id} style={styles.snapCard}>
-              <View style={styles.cardHeader}>
-                <View style={styles.authorBadge}>
-                  <Text style={styles.authorLetter}>
-                    {snap.customer_name
-                      ? snap.customer_name.charAt(0).toUpperCase()
-                      : "U"}
-                  </Text>
-                </View>
-                <View>
-                  <Text style={styles.authorName}>
-                    {snap.customer_name || "Community Member"}
-                  </Text>
-                  <Text style={styles.timeAgo}>
-                    {snap.created_at
-                      ? new Date(snap.created_at).toLocaleDateString()
-                      : ""}
-                  </Text>
-                </View>
-              </View>
-
-              <Image
-                source={{ uri: snap.image_url }}
-                style={styles.snapImage}
-                resizeMode="cover"
-              />
-
-              {snap.caption ? (
-                <Text style={styles.caption}>{snap.caption}</Text>
-              ) : null}
-
-              <View style={styles.reactionsRow}>
-                <TouchableOpacity
-                  style={styles.reactionBtn}
-                  onPress={() => handleReact(snap.id, "like")}
-                >
-                  <Text style={styles.emoji}>❤️</Text>
-                  <Text style={styles.count}>{snap.likes || 0}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.reactionBtn}
-                  onPress={() => handleReact(snap.id, "smile")}
-                >
-                  <Text style={styles.emoji}>😊</Text>
-                  <Text style={styles.count}>{snap.smiles || 0}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.reactionBtn}
-                  onPress={() => handleReact(snap.id, "tongue")}
-                >
-                  <Text style={styles.emoji}>😜</Text>
-                  <Text style={styles.count}>{snap.tongues || 0}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
-        )}
-      </ScrollView>
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={6}
+        removeClippedSubviews
+        updateCellsBatchingPeriod={50}
+      />
     </SafeAreaView>
   );
 }
@@ -239,5 +275,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: Colors.light.text,
+  },
+  loadMoreBtn: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    alignItems: "center",
+    backgroundColor: Colors.light.surface,
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.light.primary,
   },
 });
