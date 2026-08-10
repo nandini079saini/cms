@@ -1,38 +1,31 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "../api/axiosInstance";
 
 // Renders a row of LLM-picked related articles for a given post.
 // Usage: <RelatedAI postId={post.id} /> — drop into PostDetail.jsx
 // alongside your existing (collaborative-filtering) related posts section.
+//
+// Previously this used useEffect + useState to manage loading/error state,
+// which triggered the react-hooks/set-state-in-effect lint rule (calling
+// setState synchronously in an effect body). Since the project already
+// depends on @tanstack/react-query, useQuery replaces that manual fetch +
+// loading/error/cancel logic entirely — react-query handles loading state,
+// error state, request cancellation, and caching for you.
 export default function RelatedAI({ postId, limit = 5 }) {
-  const [related, setRelated] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["related-ai", postId, limit],
+    queryFn: async () => {
+      const res = await axiosInstance.get(
+        `/api/posts/${postId}/related-ai?limit=${limit}`,
+      );
+      return res.data?.related || [];
+    },
+    enabled: !!postId,
+  });
 
-  useEffect(() => {
-    if (!postId) return;
-    let cancelled = false;
-    setLoading(true);
-    setError(false);
+  const related = data || [];
 
-    axiosInstance
-      .get(`/api/posts/${postId}/related-ai?limit=${limit}`)
-      .then((res) => {
-        if (!cancelled) setRelated(res.data?.related || []);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [postId, limit]);
-
-  if (loading || error || related.length === 0) return null;
+  if (isLoading || isError || related.length === 0) return null;
 
   return (
     <section style={{ marginTop: "2.5rem" }}>

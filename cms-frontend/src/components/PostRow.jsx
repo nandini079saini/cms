@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation } from "swiper/modules";
 
@@ -7,8 +7,12 @@ import "swiper/css/navigation";
 import PostCard from "./PostCard";
 
 export default function PostRow({ title, posts }) {
-  const prevRef = useRef(null);
-  const nextRef = useRef(null);
+  // Instead of useRef + reading .current during render (which triggers the
+  // react-hooks/refs lint error), we use state set via callback refs.
+  // The callback fires when the DOM node mounts, storing it in state — safe
+  // to read during render because it's just a normal state value.
+  const [prevEl, setPrevEl] = useState(null);
+  const [nextEl, setNextEl] = useState(null);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
 
@@ -52,7 +56,7 @@ export default function PostRow({ title, posts }) {
       >
         {/* Left Arrow */}
         <button
-          ref={prevRef}
+          ref={setPrevEl}
           aria-label={`Scroll ${title} left`}
           disabled={atStart}
           style={{
@@ -71,7 +75,7 @@ export default function PostRow({ title, posts }) {
 
         {/* Right Arrow */}
         <button
-          ref={nextRef}
+          ref={setNextEl}
           aria-label={`Scroll ${title} right`}
           disabled={atEnd}
           style={{
@@ -88,41 +92,38 @@ export default function PostRow({ title, posts }) {
           ›
         </button>
 
-        <Swiper
-          className="pr-swiper"
-          modules={[Navigation]}
-          navigation={{
-            prevEl: prevRef.current,
-            nextEl: nextRef.current,
-          }}
-          onBeforeInit={(swiper) => {
-            swiper.params.navigation.prevEl = prevRef.current;
-            swiper.params.navigation.nextEl = nextRef.current;
-          }}
-          onSlideChange={(swiper) => {
-            setAtStart(swiper.isBeginning);
-            setAtEnd(swiper.isEnd);
-          }}
-          onInit={(swiper) => {
-            setAtStart(swiper.isBeginning);
-            setAtEnd(swiper.isEnd);
-          }}
-          grabCursor
-          loop={false}
-          spaceBetween={20}
-          slidesPerView={1.2}
-          breakpoints={{
-            640: { slidesPerView: 2 },
-            900: { slidesPerView: 3 },
-            1200: { slidesPerView: 4 },
-          }}
-        >
-          {posts.map((post) => (
-            <SwiperSlide key={post.id}>
-              <PostCard post={post} />
-            </SwiperSlide>
-          ))}
-        </Swiper>
+        {/* Only mount Swiper once both nav buttons exist, so Swiper gets
+            real elements on first init instead of null. */}
+        {prevEl && nextEl && (
+          <Swiper
+            className="pr-swiper"
+            modules={[Navigation]}
+            navigation={{ prevEl, nextEl }}
+            onSlideChange={(swiper) => {
+              setAtStart(swiper.isBeginning);
+              setAtEnd(swiper.isEnd);
+            }}
+            onInit={(swiper) => {
+              setAtStart(swiper.isBeginning);
+              setAtEnd(swiper.isEnd);
+            }}
+            grabCursor
+            loop={false}
+            spaceBetween={20}
+            slidesPerView={1.2}
+            breakpoints={{
+              640: { slidesPerView: 2 },
+              900: { slidesPerView: 3 },
+              1200: { slidesPerView: 4 },
+            }}
+          >
+            {posts.map((post) => (
+              <SwiperSlide key={post.id}>
+                <PostCard post={post} />
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        )}
       </div>
     </section>
   );
