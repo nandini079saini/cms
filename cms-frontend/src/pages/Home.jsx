@@ -4,6 +4,7 @@ import QuickBites from "../components/QuickBites";
 import Snaps from "../components/Snaps";
 import CategoryTabs from "../components/CategoryTabs";
 import PostRow from "../components/PostRow";
+import Footer from "../components/Footer";
 
 export default function Home() {
   const { data, isLoading, error } = useQuery({
@@ -141,6 +142,7 @@ export default function Home() {
           ))}
         </div>
       </main>
+      <Footer />
     </>
   );
 }

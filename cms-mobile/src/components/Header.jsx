@@ -25,9 +25,13 @@ export const Header = ({ showBack = false, title }) => {
             />
           </TouchableOpacity>
         ) : (
-          <View style={styles.brandRow}>
+          <TouchableOpacity
+            style={styles.brandRow}
+            onPress={() => router.push("/(tabs)")}
+            activeOpacity={0.7}
+          >
             <Text style={styles.brandTitle}>CMS Stories</Text>
-          </View>
+          </TouchableOpacity>
         )}
       </View>
 

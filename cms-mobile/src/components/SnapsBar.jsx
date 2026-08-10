@@ -1,21 +1,32 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
+  Dimensions,
   Modal,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Image } from "expo-image";
-import { Colors } from "../../constants/theme";
+import Swiper from "react-native-swiper";
 import { reactToSnap } from "../api/snaps";
 import { useAuth } from "../context/AuthContext";
 
+// Sizes matched to the web Snaps.jsx card (320 x 430), capped to the
+// screen width so it doesn't overflow on narrow devices.
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 40);
+const CARD_HEIGHT = CARD_WIDTH * (430 / 320);
+
 export const SnapsBar = ({ snaps, onRefresh }) => {
   const { user } = useAuth();
-  const [activeSnap, setActiveSnap] = useState(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeSnapId, setActiveSnapId] = useState(null);
+
+  // Re-derive from the latest `snaps` prop by id (not a frozen snapshot),
+  // so counts refresh right after a refetch.
+  const activeSnap = snaps ? snaps.find((s) => s.id === activeSnapId) : null;
 
   if (!snaps || snaps.length === 0) return null;
 
@@ -29,68 +40,90 @@ export const SnapsBar = ({ snaps, onRefresh }) => {
     }
   };
 
+  const current = snaps[activeIndex];
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Community Snaps</Text>
+        <Text style={styles.title}>COMMUNITY SNAPS</Text>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-        {snaps.map((snap) => (
-          <TouchableOpacity
-            key={snap.id}
-            style={styles.avatarContainer}
-            onPress={() => setActiveSnap(snap)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.gradientRing}>
+      <View style={styles.swiperWrap}>
+        <Swiper
+          style={styles.swiper}
+          loop
+          showsPagination={false}
+          onIndexChanged={setActiveIndex}
+        >
+          {snaps.map((snap) => (
+            <TouchableOpacity
+              key={snap.id}
+              style={styles.card}
+              activeOpacity={0.9}
+              onPress={() => setActiveSnapId(snap.id)}
+            >
               <Image
                 source={{ uri: snap.image_url }}
-                style={styles.avatarImage}
+                style={styles.cardImage}
                 contentFit="cover"
                 cachePolicy="memory-disk"
                 transition={150}
               />
-            </View>
-            <Text style={styles.customerName} numberOfLines={1}>
-              {snap.customer_name || "User"}
+            </TouchableOpacity>
+          ))}
+        </Swiper>
+      </View>
+
+      {current ? (
+        <>
+          <Text style={styles.caption} numberOfLines={1}>
+            {current.customer_name || "User"}
+          </Text>
+          {current.caption ? (
+            <Text style={styles.excerpt} numberOfLines={2}>
+              {current.caption}
             </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+          ) : null}
+        </>
+      ) : null}
 
       {/* Snap Viewer Modal */}
       <Modal
         visible={!!activeSnap}
         transparent={false}
         animationType="fade"
-        onRequestClose={() => setActiveSnap(null)}
+        onRequestClose={() => setActiveSnapId(null)}
       >
         {activeSnap ? (
-          <View style={styles.snapViewer}>
+          <TouchableOpacity
+            style={styles.snapViewer}
+            activeOpacity={1}
+            onPress={() => setActiveSnapId(null)}
+          >
             <TouchableOpacity
-              style={styles.closeViewer}
-              onPress={() => setActiveSnap(null)}
+              style={styles.viewerCard}
+              activeOpacity={1}
+              onPress={() => {}}
             >
-              <Ionicons name="close" size={28} color="#FFFFFF" />
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.closeViewer}
+                onPress={() => setActiveSnapId(null)}
+              >
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
 
-            <Image
-              source={{ uri: activeSnap.image_url }}
-              style={styles.fullSnapImage}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-              transition={150}
-            />
-
-            <View style={styles.viewerFooter}>
               <Text style={styles.viewerAuthor}>
                 {activeSnap.customer_name}
               </Text>
+
+              <Image
+                source={{ uri: activeSnap.image_url }}
+                style={styles.fullSnapImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
+              />
+
               {activeSnap.caption ? (
                 <Text style={styles.viewerCaption}>{activeSnap.caption}</Text>
               ) : null}
@@ -100,7 +133,7 @@ export const SnapsBar = ({ snaps, onRefresh }) => {
                   style={styles.reactionBtn}
                   onPress={() => handleReact("like")}
                 >
-                  <Text style={styles.reactionEmoji}>❤️</Text>
+                  <Text style={styles.reactionEmoji}>👍</Text>
                   <Text style={styles.reactionCount}>
                     {activeSnap.likes || 0}
                   </Text>
@@ -110,7 +143,7 @@ export const SnapsBar = ({ snaps, onRefresh }) => {
                   style={styles.reactionBtn}
                   onPress={() => handleReact("smile")}
                 >
-                  <Text style={styles.reactionEmoji}>😊</Text>
+                  <Text style={styles.reactionEmoji}>😄</Text>
                   <Text style={styles.reactionCount}>
                     {activeSnap.smiles || 0}
                   </Text>
@@ -120,14 +153,14 @@ export const SnapsBar = ({ snaps, onRefresh }) => {
                   style={styles.reactionBtn}
                   onPress={() => handleReact("tongue")}
                 >
-                  <Text style={styles.reactionEmoji}>😜</Text>
+                  <Text style={styles.reactionEmoji}>😛</Text>
                   <Text style={styles.reactionCount}>
                     {activeSnap.tongues || 0}
                   </Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
         ) : null}
       </Modal>
     </View>
@@ -136,108 +169,107 @@ export const SnapsBar = ({ snaps, onRefresh }) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 8,
+    paddingTop: 24,
+    paddingBottom: 8,
+    alignItems: "center",
   },
   header: {
-    flexDirection: "row",
+    width: "100%",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 16,
   },
   title: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "700",
-    color: Colors.light.text,
+    color: "#222222",
+    textTransform: "uppercase",
   },
-  subtitle: {
-    fontSize: 12,
-    color: Colors.light.muted,
+  swiperWrap: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
   },
-  scroll: {
-    paddingHorizontal: 16,
-    gap: 14,
+  swiper: {
+    height: CARD_HEIGHT,
   },
-  avatarContainer: {
-    alignItems: "center",
-    width: 68,
+  card: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 30,
+    elevation: 8,
   },
-  gradientRing: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    padding: 2,
-    backgroundColor: Colors.light.primary,
-    justifyContent: "center",
-    alignItems: "center",
+  cardImage: {
+    width: "100%",
+    height: "100%",
   },
-  avatarImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 2,
-    borderColor: Colors.light.surface,
-  },
-  customerName: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: Colors.light.text,
-    marginTop: 4,
+  caption: {
+    marginTop: 11,
+    marginBottom: 3,
+    fontWeight: "700",
+    fontSize: 14,
+    color: "#222222",
     textAlign: "center",
+  },
+  excerpt: {
+    fontSize: 13,
+    color: "#717171",
+    textAlign: "center",
+    paddingHorizontal: 24,
+    lineHeight: 18,
   },
   snapViewer: {
     flex: 1,
-    backgroundColor: "#000000",
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
     justifyContent: "center",
+    alignItems: "center",
+  },
+  viewerCard: {
+    width: "90%",
+    maxWidth: 420,
   },
   closeViewer: {
     position: "absolute",
-    top: 50,
-    right: 20,
+    top: -40,
+    right: 0,
     zIndex: 20,
-    padding: 8,
-  },
-  fullSnapImage: {
-    width: "100%",
-    height: "70%",
-  },
-  viewerFooter: {
-    position: "absolute",
-    bottom: 40,
-    left: 20,
-    right: 20,
+    padding: 4,
   },
   viewerAuthor: {
     color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 4,
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  fullSnapImage: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 12,
   },
   viewerCaption: {
-    color: "#E5E7EB",
+    color: "#EEEEEE",
     fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
+    marginTop: 8,
   },
   reactionsRow: {
     flexDirection: "row",
-    gap: 20,
+    justifyContent: "center",
+    gap: 24,
+    marginTop: 20,
   },
   reactionBtn: {
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
+    gap: 3,
   },
   reactionEmoji: {
-    fontSize: 18,
+    fontSize: 26,
   },
   reactionCount: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 14,
+    color: "#CCCCCC",
+    fontSize: 12,
   },
 });

@@ -43,7 +43,10 @@ export const getCategories = async () => {
   return response.data;
 };
 
-export const getRelatedAi = async (params) => {
-  const response = await api.get("/api/related-ai", { params });
+export const getRelatedAi = async (postId, limit = 5) => {
+  const response = await api.get(
+    `/api/posts/${postId}/related-ai?limit=${limit}`,
+  );
+
   return response.data;
 };

@@ -1,51 +1,54 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+} from "react-native";
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { getRelatedAi } from "../api/posts";
 
-export const RelatedAiSection = ({ topic, title }) => {
-  const [loading, setLoading] = useState(false);
-  const [recommendations, setRecommendations] = useState([]);
+// Renders a row of LLM-picked related articles for a given post.
+// Usage: <RelatedAiSection postId={post.id} /> — mirrors cms-frontend's RelatedAI.jsx.
+export const RelatedAiSection = ({ postId, limit = 5 }) => {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [related, setRelated] = useState([]);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    const fetchRelated = async () => {
-      if (!topic && !title) return;
-      setLoading(true);
-      try {
-        const res = await getRelatedAi({ topic, title });
-        if (res && res.recommendations) {
-          setRecommendations(res.recommendations);
-        } else if (Array.isArray(res)) {
-          setRecommendations(res);
-        } else {
-          setRecommendations([
-            "Deep dive into key concepts and methodology",
-            "Industry standards and best practice blueprints",
-            "Future trends & upcoming innovations in this field",
-          ]);
-        }
-      } catch (err) {
-        // Fallback default recommendations
-        setRecommendations([
-          "Deep dive into key concepts and methodology",
-          "Industry standards and best practice blueprints",
-          "Future trends & upcoming innovations in this field",
-        ]);
-      } finally {
-        setLoading(false);
-      }
+    if (!postId) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+
+    getRelatedAi(postId, limit)
+      .then((data) => {
+        if (!cancelled) setRelated(data?.related || []);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
     };
+  }, [postId, limit]);
 
-    fetchRelated();
-  }, [topic, title]);
-
-  if (!topic && !title) return null;
+  if (!postId) return null;
+  if (!loading && (error || related.length === 0)) return null;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Ionicons name="sparkles" size={18} color="#8B5CF6" />
-        <Text style={styles.headerTitle}>AI Insights & Related Topics</Text>
+        <Text style={styles.headerTitle}>Related Content</Text>
       </View>
 
       {loading ? (
@@ -55,12 +58,34 @@ export const RelatedAiSection = ({ topic, title }) => {
           style={{ marginVertical: 10 }}
         />
       ) : (
-        <View style={styles.list}>
-          {recommendations.map((item, idx) => (
-            <View key={idx} style={styles.itemRow}>
-              <View style={styles.bullet} />
-              <Text style={styles.itemText}>{item}</Text>
-            </View>
+        <View style={styles.grid}>
+          {related.map((post) => (
+            <TouchableOpacity
+              key={post.id}
+              style={styles.card}
+              activeOpacity={0.85}
+              // NOTE: adjust this path to match your actual expo-router post
+              // detail route (this mirrors the web version's `/post/${slug||id}`).
+              onPress={() => router.push(`/post/${post.slug || post.id}`)}
+            >
+              {post.gif_url ? (
+                <Image
+                  source={{ uri: post.gif_url }}
+                  style={styles.cardImage}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={150}
+                />
+              ) : null}
+              <View style={styles.cardBody}>
+                <Text style={styles.cardTitle} numberOfLines={2}>
+                  {post.title}
+                </Text>
+                {post.category ? (
+                  <Text style={styles.cardCategory}>{post.category}</Text>
+                ) : null}
+              </View>
+            </TouchableOpacity>
           ))}
         </View>
       )}
@@ -88,24 +113,37 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#6D28D9",
   },
-  list: {
-    gap: 10,
-  },
-  itemRow: {
+  grid: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+    flexWrap: "wrap",
+    gap: 12,
   },
-  bullet: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#8B5CF6",
+  card: {
+    width: "47%",
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#E9E5FB",
   },
-  itemText: {
-    fontSize: 14,
-    color: "#4C1D95",
-    flex: 1,
-    lineHeight: 20,
+  cardImage: {
+    width: "100%",
+    height: 90,
+    backgroundColor: "#EDE9FE",
+  },
+  cardBody: {
+    padding: 8,
+  },
+  cardTitle: {
+    fontSize: 12.5,
+    fontWeight: "600",
+    color: "#312E81",
+    lineHeight: 17,
+    marginBottom: 3,
+  },
+  cardCategory: {
+    fontSize: 10.5,
+    color: "#8B5CF6",
+    fontWeight: "500",
   },
 });
