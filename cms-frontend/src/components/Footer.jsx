@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { APP_VERSION } from "../version";
 
 export default function Footer() {
   return (
@@ -41,7 +42,7 @@ export default function Footer() {
             margin: 0,
           }}
         >
-          © {new Date().getFullYear()} WordsOfNADS.
+          v{APP_VERSION}
         </p>
       </div>
     </footer>
