@@ -58,16 +58,22 @@ const resetTokens = new Map(); // token -> { email, accountType, expiresAt }
 app.post("/api/forgot-password", loginLimiter, async (req, res) => {
   const { email } = req.body;
   if (!email) {
-    return res.status(400).json({ success: false, message: "Email is required" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Email is required" });
   }
 
   try {
     let accountType = null;
-    let [rows] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+    let [rows] = await db.query("SELECT id FROM users WHERE email = ?", [
+      email,
+    ]);
     if (rows.length > 0) {
       accountType = "admin";
     } else {
-      [rows] = await db.query("SELECT id FROM customers WHERE email = ?", [email]);
+      [rows] = await db.query("SELECT id FROM customers WHERE email = ?", [
+        email,
+      ]);
       if (rows.length > 0) {
         accountType = "customer";
       }
@@ -90,50 +96,78 @@ app.post("/api/forgot-password", loginLimiter, async (req, res) => {
         }
       }
       if (!frontendUrl) {
-        frontendUrl = accountType === "admin" 
-          ? "http://localhost:5174" 
-          : "http://localhost:5173";
+        frontendUrl =
+          accountType === "admin"
+            ? "http://localhost:5174"
+            : "http://localhost:5173";
       }
-      
+
       const resetLink = `${frontendUrl}/reset-password?token=${token}`;
-      await sendResetEmail(email, resetLink);
+      const emailSent = await sendResetEmail(email, resetLink);
+      console.log(
+        `[forgot-password] account found (${accountType}), sendResetEmail returned: ${emailSent}`,
+      );
+    } else {
+      console.log(
+        `[forgot-password] no account found for ${email} — email not sent`,
+      );
     }
-    
+
     // Always return success to prevent email enumeration
-    res.json({ success: true, message: "If an account with that email exists, we have sent a password reset link." });
+    res.json({
+      success: true,
+      message:
+        "If an account with that email exists, we have sent a password reset link.",
+    });
   } catch (err) {
     console.error("Forgot password error:", err);
-    res.status(500).json({ success: false, message: "Failed to process request" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to process request" });
   }
 });
 
 app.post("/api/reset-password", loginLimiter, async (req, res) => {
   const { token, newPassword } = req.body;
   if (!token || !newPassword) {
-    return res.status(400).json({ success: false, message: "Token and new password are required" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Token and new password are required" });
   }
 
   if (newPassword.length < 8) {
-    return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
+    return res
+      .status(400)
+      .json({
+        success: false,
+        message: "Password must be at least 8 characters",
+      });
   }
 
   const tokenData = resetTokens.get(token);
   if (!tokenData || tokenData.expiresAt < Date.now()) {
     if (tokenData) resetTokens.delete(token);
-    return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid or expired reset token" });
   }
 
   try {
     const hashed = await bcrypt.hash(newPassword, 10);
     const table = tokenData.accountType === "admin" ? "users" : "customers";
-    
-    await db.query(`UPDATE ${table} SET password = ? WHERE email = ?`, [hashed, tokenData.email]);
+
+    await db.query(`UPDATE ${table} SET password = ? WHERE email = ?`, [
+      hashed,
+      tokenData.email,
+    ]);
     resetTokens.delete(token); // invalidate token
 
     res.json({ success: true, message: "Password reset successful" });
   } catch (err) {
     console.error("Reset password error:", err);
-    res.status(500).json({ success: false, message: "Failed to reset password" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to reset password" });
   }
 });
 
@@ -1050,12 +1084,10 @@ app.post(
     try {
       const detected = await fileTypeFromBuffer(req.file.buffer);
       if (!detected || !ALLOWED_SNAP_MIME_TYPES.includes(detected.mime)) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Unsupported or invalid image file",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Unsupported or invalid image file",
+        });
       }
 
       const filename = `${customer_id}_${Date.now()}.${detected.ext}`;
