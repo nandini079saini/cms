@@ -15,6 +15,8 @@ app.use(
       "http://localhost:5174",
       "https://cms-user.netlify.app",
       "https://cms-admin-portal.netlify.app",
+      "https://cms-user-theta.vercel.app/",
+      "https://cms-admin-gilt-nu.vercel.app/",
     ],
     credentials: true,
   }),
