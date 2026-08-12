@@ -9,6 +9,10 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_APP_PASSWORD,
   },
+  // Render's outbound network doesn't support IPv6. Without this, Node can
+  // resolve smtp.gmail.com to an IPv6 address and fail with ENETUNREACH.
+  // Forcing IPv4 avoids that.
+  family: 4,
 });
 
 async function sendResetEmail(toEmail, resetLink) {
