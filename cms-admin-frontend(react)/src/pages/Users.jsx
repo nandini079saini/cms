@@ -4,7 +4,7 @@ import Toast from "../components/Toast";
 import { useState, useEffect } from "react";
 import { authFetch } from "../api/authFetch";
 
-const API = `${import.meta.env.VITE_API_URL}/api`;
+const API = `${import.meta.env.VITE_API_URL}`;
 function initials(name) {
   return (name || "?")
     .split(" ")
