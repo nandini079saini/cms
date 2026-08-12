@@ -527,33 +527,40 @@ app.use(require("./routes/relatedAi"));
 app.post("/api/customers/login", loginLimiter, async (req, res) => {
   const { email, password } = req.body;
 
-  const [rows] = await db.query("SELECT * FROM customers WHERE email = ?", [
-    email,
-  ]);
-
-  // TEMP DEBUG — remove once the login issue is resolved.
-  console.log(`[customer-login] email="${email}" rowsFound=${rows.length}`);
-  if (rows.length) {
-    const pwMatch = await bcrypt.compare(password, rows[0].password);
-    console.log(
-      `[customer-login] stored email="${rows[0].email}" passwordMatch=${pwMatch}`,
-    );
-  }
-
-  const match =
-    rows.length && (await bcrypt.compare(password, rows[0].password));
-
-  if (!match) {
+  if (!email || !password) {
     return res
-      .status(401)
-      .json({ success: false, message: "Invalid email or password" });
+      .status(400)
+      .json({ success: false, message: "Email and password are required" });
   }
 
-  const { password: _pw, ...customer } = rows[0];
-  const token = signToken({ id: customer.id, role: "customer" });
-  res.json({ success: true, token, customer });
-});
+  try {
+    const [rows] = await db.query("SELECT * FROM customers WHERE email = ?", [
+      email,
+    ]);
 
+    // Guard against rows with a null/empty password (bad data, partial
+    // signup, etc.) — bcrypt.compare throws on a non-string hash, which
+    // is exactly the kind of error that was crashing the server.
+    const storedHash = rows.length ? rows[0].password : null;
+    const match =
+      typeof storedHash === "string" &&
+      storedHash.length > 0 &&
+      (await bcrypt.compare(password, storedHash));
+
+    if (!match) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
+    }
+
+    const { password: _pw, ...customer } = rows[0];
+    const token = signToken({ id: customer.id, role: "customer" });
+    res.json({ success: true, token, customer });
+  } catch (err) {
+    console.error("Customer login error:", err.message);
+    res.status(500).json({ success: false, message: "Login failed" });
+  }
+});
 // Admin-only: list every customer.
 app.get(
   "/api/customers",
