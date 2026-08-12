@@ -589,7 +589,7 @@ app.get("/api/users", async (req, res) => {
 });
 
 app.post("/api/users", async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({
@@ -598,13 +598,10 @@ app.post("/api/users", async (req, res) => {
     });
   }
 
-  const allowedRoles = ["admin", "editor", "viewer"];
-  const userRole = allowedRoles.includes(role) ? role : "editor";
-
   try {
     const [result] = await db.query(
-      "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
-      [name, email, password, userRole],
+      "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+      [name, email, password],
     );
     res.status(201).json({
       success: true,
