@@ -4,6 +4,7 @@ import Home from "./pages/Home";
 import CategoryPage from "./pages/CategoryPage";
 import PostDetail from "./pages/PostDetail";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
 import useVisitTracker from "./hooks/useVisitTracker";
 import { useAuth } from "./context/useAuth";
@@ -19,6 +20,10 @@ function AppInner() {
         <Route
           path="/login"
           element={!user ? <Login /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/reset-password"
+          element={!user ? <ResetPassword /> : <Navigate to="/" replace />}
         />
         <Route
           path="/"

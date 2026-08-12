@@ -9,12 +9,15 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isForgotView, setIsForgotView] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
   async function doLogin() {
     setError("");
+    setSuccess("");
     if (!email || !password) {
       setError("Please enter your email and password.");
       return;
@@ -32,6 +35,33 @@ export default function Login() {
         navigate("/");
       } else {
         setError(data.message || "Invalid email or password.");
+      }
+    } catch {
+      setError("Could not connect to server. Make sure it's running.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function doForgot() {
+    setError("");
+    setSuccess("");
+    if (!email) {
+      setError("Please enter your email.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(API + "/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(data.message || "Reset link sent to your email.");
+      } else {
+        setError(data.message || "Failed to send reset link.");
       }
     } catch {
       setError("Could not connect to server. Make sure it's running.");
@@ -97,7 +127,7 @@ export default function Login() {
             borderBottom: `1px solid var(--border)`,
           }}
         >
-          Sign in to your account
+          {isForgotView ? "Enter your email to reset your password" : "Sign in to your account"}
         </p>
 
         {error && (
@@ -119,6 +149,28 @@ export default function Login() {
               error_outline
             </span>
             {error}
+          </div>
+        )}
+
+        {success && (
+          <div
+            style={{
+              background: "rgba(52,211,153,0.1)",
+              border: "1px solid rgba(52,211,153,0.3)",
+              borderRadius: 8,
+              padding: "10px 14px",
+              fontSize: 12,
+              color: "#34d399",
+              marginBottom: 16,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span className="material-icons" style={{ fontSize: 16 }}>
+              check_circle_outline
+            </span>
+            {success}
           </div>
         )}
 
@@ -158,7 +210,7 @@ export default function Login() {
               placeholder="admin@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && doLogin()}
+              onKeyDown={(e) => e.key === "Enter" && (isForgotView ? doForgot() : doLogin())}
               style={{
                 width: "100%",
                 background: "var(--surface2)",
@@ -176,7 +228,8 @@ export default function Login() {
           </div>
         </div>
 
-        <div style={{ marginBottom: 16 }}>
+        {!isForgotView && (
+          <div style={{ marginBottom: 16 }}>
           <label
             style={{
               display: "block",
@@ -251,34 +304,106 @@ export default function Login() {
             </button>
           </div>
         </div>
+        )}
 
-        <button
-          style={{
-            width: "100%",
-            justifyContent: "center",
-            marginTop: 8,
-            padding: 11,
-            fontSize: 14,
-            borderRadius: 9,
-            border: "none",
-            background: "var(--accent)",
-            color: "#fff",
-            fontWeight: 600,
-            fontFamily: "Inter, sans-serif",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            opacity: loading ? 0.7 : 1,
-          }}
-          onClick={doLogin}
-          disabled={loading}
-        >
-          <span className="material-icons" style={{ fontSize: 17 }}>
-            login
-          </span>
-          {loading ? "Signing in…" : "Sign in"}
-        </button>
+        {isForgotView ? (
+          <button
+            style={{
+              width: "100%",
+              justifyContent: "center",
+              marginTop: 8,
+              padding: 11,
+              fontSize: 14,
+              borderRadius: 9,
+              border: "none",
+              background: "var(--accent)",
+              color: "#fff",
+              fontWeight: 600,
+              fontFamily: "Inter, sans-serif",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              opacity: loading ? 0.7 : 1,
+            }}
+            onClick={doForgot}
+            disabled={loading}
+          >
+            <span className="material-icons" style={{ fontSize: 17 }}>
+              send
+            </span>
+            {loading ? "Sending…" : "Send Reset Link"}
+          </button>
+        ) : (
+          <button
+            style={{
+              width: "100%",
+              justifyContent: "center",
+              marginTop: 8,
+              padding: 11,
+              fontSize: 14,
+              borderRadius: 9,
+              border: "none",
+              background: "var(--accent)",
+              color: "#fff",
+              fontWeight: 600,
+              fontFamily: "Inter, sans-serif",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              opacity: loading ? 0.7 : 1,
+            }}
+            onClick={doLogin}
+            disabled={loading}
+          >
+            <span className="material-icons" style={{ fontSize: 17 }}>
+              login
+            </span>
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
+        )}
+
+        <div style={{ marginTop: 20, textAlign: "center" }}>
+          {isForgotView ? (
+            <button
+              onClick={() => {
+                setIsForgotView(false);
+                setError("");
+                setSuccess("");
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--accent)",
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "Inter, sans-serif",
+              }}
+            >
+              Back to Sign In
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setIsForgotView(true);
+                setError("");
+                setSuccess("");
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--muted)",
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "Inter, sans-serif",
+                textDecoration: "underline",
+              }}
+            >
+              Forgot Password?
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
-import { customerLogin, customerSignup } from "../api/posts";
+import { customerLogin, customerSignup, forgotPassword } from "../api/posts";
 
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
 
@@ -60,6 +60,21 @@ export default function Login() {
     }
   };
 
+  const handleForgot = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    if (!isValidEmail(email)) return setError("Please enter a valid email address.");
+    try {
+      const res = await forgotPassword(email);
+      if (res.data.success) {
+        setSuccess("Password reset link sent to your email.");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to send reset link.");
+    }
+  };
+
   const inputStyle = {
     width: "100%",
     padding: "0.8rem 1rem",
@@ -112,65 +127,69 @@ export default function Login() {
               margin: "0 0 0.25rem",
             }}
           >
-            {tab === "login" ? "Log in to CMSTesting" : "Create your account"}
+            {tab === "login" ? "Log in to CMSTesting" : tab === "signup" ? "Create your account" : "Reset your password"}
           </h1>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.75rem",
-            marginBottom: "1.5rem",
-          }}
-        >
-          <hr
-            style={{ flex: 1, border: "none", borderTop: "1px solid #ebebeb" }}
-          />
-          <span style={{ fontSize: "0.78rem", color: "#717171" }}>
-            or continue with email
-          </span>
-          <hr
-            style={{ flex: 1, border: "none", borderTop: "1px solid #ebebeb" }}
-          />
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            background: "#f7f7f7",
-            borderRadius: "8px",
-            padding: "3px",
-            marginBottom: "1.5rem",
-          }}
-        >
-          {["login", "signup"].map((t) => (
-            <button
-              key={t}
-              onClick={() => {
-                setTab(t);
-                setError("");
-                setSuccess("");
-              }}
+        {tab !== "forgot" && (
+          <>
+            <div
               style={{
-                flex: 1,
-                padding: "0.5rem",
-                borderRadius: "6px",
-                border: "none",
-                background: tab === t ? "#fff" : "transparent",
-                color: tab === t ? "#222" : "#717171",
-                fontWeight: tab === t ? 600 : 400,
-                fontSize: "0.85rem",
-                cursor: "pointer",
-                boxShadow: tab === t ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
-                transition: "all 0.15s",
-                textTransform: "capitalize",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.75rem",
+                marginBottom: "1.5rem",
               }}
             >
-              {t === "login" ? "Log in" : "Sign up"}
-            </button>
-          ))}
-        </div>
+              <hr
+                style={{ flex: 1, border: "none", borderTop: "1px solid #ebebeb" }}
+              />
+              <span style={{ fontSize: "0.78rem", color: "#717171" }}>
+                or continue with email
+              </span>
+              <hr
+                style={{ flex: 1, border: "none", borderTop: "1px solid #ebebeb" }}
+              />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                background: "#f7f7f7",
+                borderRadius: "8px",
+                padding: "3px",
+                marginBottom: "1.5rem",
+              }}
+            >
+              {["login", "signup"].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => {
+                    setTab(t);
+                    setError("");
+                    setSuccess("");
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "0.5rem",
+                    borderRadius: "6px",
+                    border: "none",
+                    background: tab === t ? "#fff" : "transparent",
+                    color: tab === t ? "#222" : "#717171",
+                    fontWeight: tab === t ? 600 : 400,
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    boxShadow: tab === t ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
+                    transition: "all 0.15s",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {t === "login" ? "Log in" : "Sign up"}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         {error && (
           <div
@@ -230,6 +249,23 @@ export default function Login() {
                 minLength={8}
                 style={inputStyle}
               />
+              <div style={{ textAlign: "right", marginTop: "0.5rem" }}>
+                <span
+                  onClick={() => {
+                    setTab("forgot");
+                    setError("");
+                    setSuccess("");
+                  }}
+                  style={{
+                    fontSize: "0.82rem",
+                    color: "var(--accent)",
+                    cursor: "pointer",
+                    fontWeight: 500,
+                  }}
+                >
+                  Forgot Password?
+                </span>
+              </div>
             </div>
             <button
               type="submit"
@@ -328,6 +364,62 @@ export default function Login() {
             >
               Create Account
             </button>
+          </form>
+        )}
+
+        {tab === "forgot" && (
+          <form
+            onSubmit={handleForgot}
+            style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+          >
+            <div>
+              <label style={labelStyle}>Email</label>
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                placeholder="you@example.com"
+                required
+                style={inputStyle}
+              />
+            </div>
+            <button
+              type="submit"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--accent), var(--accent-dark))",
+                color: "#fff",
+                border: "none",
+                padding: "0.85rem",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontWeight: 600,
+                fontSize: "0.92rem",
+                marginTop: "0.25rem",
+                transition: "opacity 0.15s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+            >
+              Send Reset Link
+            </button>
+            <div style={{ textAlign: "center", marginTop: "0.5rem" }}>
+              <span
+                onClick={() => {
+                  setTab("login");
+                  setError("");
+                  setSuccess("");
+                }}
+                style={{
+                  fontSize: "0.85rem",
+                  color: "#717171",
+                  cursor: "pointer",
+                  fontWeight: 500,
+                }}
+              >
+                Back to Log In
+              </span>
+            </div>
           </form>
         )}
       </div>

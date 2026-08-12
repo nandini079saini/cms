@@ -8,3 +8,7 @@ export const customerLogin = (email, password) =>
   api.post("/api/customers/login", { email, password });
 export const customerSignup = (name, email, phone, password) =>
   api.post("/api/customers/signup", { name, email, phone, password });
+export const forgotPassword = (email) => 
+  api.post("/api/forgot-password", { email });
+export const resetPassword = (token, newPassword) => 
+  api.post("/api/reset-password", { token, newPassword });
