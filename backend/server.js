@@ -136,12 +136,10 @@ app.post("/api/reset-password", loginLimiter, async (req, res) => {
   }
 
   if (newPassword.length < 8) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "Password must be at least 8 characters",
-      });
+    return res.status(400).json({
+      success: false,
+      message: "Password must be at least 8 characters",
+    });
   }
 
   const tokenData = resetTokens.get(token);
@@ -532,6 +530,15 @@ app.post("/api/customers/login", loginLimiter, async (req, res) => {
   const [rows] = await db.query("SELECT * FROM customers WHERE email = ?", [
     email,
   ]);
+
+  // TEMP DEBUG — remove once the login issue is resolved.
+  console.log(`[customer-login] email="${email}" rowsFound=${rows.length}`);
+  if (rows.length) {
+    const pwMatch = await bcrypt.compare(password, rows[0].password);
+    console.log(
+      `[customer-login] stored email="${rows[0].email}" passwordMatch=${pwMatch}`,
+    );
+  }
 
   const match =
     rows.length && (await bcrypt.compare(password, rows[0].password));
