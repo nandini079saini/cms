@@ -3,6 +3,7 @@ import Topbar from "../components/Topbar";
 import Toast from "../components/Toast";
 import { useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { authFetch } from "../api/authFetch";
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 export default function NewQuickBite() {
@@ -20,6 +21,7 @@ export default function NewQuickBite() {
 
   async function loadBite(id) {
     try {
+      // GET /api/quickbites/:id is public, plain fetch is fine here.
       const res = await fetch(API + "/quickbites/" + id);
       const data = await res.json();
       if (!data.success) return;
@@ -51,7 +53,9 @@ export default function NewQuickBite() {
     try {
       const url = biteId ? API + "/quickbites/" + biteId : API + "/quickbites";
       const method = biteId ? "PUT" : "POST";
-      const res = await fetch(url, {
+      // POST/PUT /api/quickbites is admin-only now — use authFetch so the
+      // JWT goes along, otherwise this 401s.
+      const res = await authFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

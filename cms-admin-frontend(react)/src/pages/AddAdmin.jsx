@@ -2,6 +2,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import Toast from "../components/Toast";
 import { useState, useEffect } from "react";
+import { authFetch } from "../api/authFetch";
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 
@@ -45,6 +46,7 @@ export default function AddAdmin() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("user");
   const [showPw, setShowPw] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -62,7 +64,7 @@ export default function AddAdmin() {
     setLoadingUsers(true);
     setUsersError(false);
     try {
-      const res = await fetch(API + "/users");
+      const res = await authFetch(API + "/users");
       const data = await res.json();
       if (data.success) setUsers(data.users);
       else setUsersError(true);
@@ -89,13 +91,14 @@ export default function AddAdmin() {
     if (!validate()) return;
     setSubmitting(true);
     try {
-      const res = await fetch(API + "/users", {
+      const res = await authFetch(API + "/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: (firstName.trim() + " " + lastName.trim()).trim(),
           email: email.trim(),
           password,
+          role,
         }),
       });
       const data = await res.json();
@@ -105,6 +108,7 @@ export default function AddAdmin() {
         setLastName("");
         setEmail("");
         setPassword("");
+        setRole("user");
         setErrors({});
         fetchUsers();
       } else {
@@ -127,7 +131,7 @@ export default function AddAdmin() {
     if (!confirm("Remove this user? They will no longer be able to log in."))
       return;
     try {
-      const res = await fetch(API + "/users/" + id, { method: "DELETE" });
+      const res = await authFetch(API + "/users/" + id, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
         setToast({ message: "User removed", type: "success" });
@@ -309,6 +313,37 @@ export default function AddAdmin() {
                 )}
               </div>
 
+              <div style={{ marginBottom: 18 }}>
+                <label style={labelStyle}>Role</label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  style={{
+                    ...inputStyle,
+                    cursor: "pointer",
+                    appearance: "none",
+                    backgroundImage:
+                      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E\")",
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "right 14px center",
+                    paddingRight: 34,
+                  }}
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--muted)",
+                    marginTop: 5,
+                  }}
+                >
+                  Admins can manage posts, categories, and other accounts. Users
+                  have standard access only.
+                </div>
+              </div>
+
               <div
                 style={{
                   display: "flex",
@@ -423,7 +458,7 @@ export default function AddAdmin() {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
-                    {["Name", "Email", ""].map((h) => (
+                    {["Name", "Email", "Role", ""].map((h) => (
                       <th
                         key={h}
                         style={{
@@ -446,7 +481,7 @@ export default function AddAdmin() {
                   {loadingUsers ? (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={5}
                         style={{
                           textAlign: "center",
                           padding: 28,
@@ -460,7 +495,7 @@ export default function AddAdmin() {
                   ) : usersError ? (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={5}
                         style={{
                           textAlign: "center",
                           padding: 24,
@@ -474,7 +509,7 @@ export default function AddAdmin() {
                   ) : users.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={5}
                         style={{
                           textAlign: "center",
                           padding: 28,
@@ -533,6 +568,33 @@ export default function AddAdmin() {
                           }}
                         >
                           {u.email}
+                        </td>
+                        <td
+                          style={{
+                            padding: "14px 20px",
+                            borderBottom: "1px solid var(--border)",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              textTransform: "capitalize",
+                              padding: "3px 9px",
+                              borderRadius: 20,
+                              color:
+                                u.role === "admin"
+                                  ? "var(--accent2)"
+                                  : "var(--muted)",
+                              background:
+                                u.role === "admin"
+                                  ? "rgba(99,102,241,0.12)"
+                                  : "var(--surface2)",
+                              border: "1px solid var(--border)",
+                            }}
+                          >
+                            {u.role || "user"}
+                          </span>
                         </td>
 
                         <td

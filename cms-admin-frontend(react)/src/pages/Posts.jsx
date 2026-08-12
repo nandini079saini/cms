@@ -1,6 +1,7 @@
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { useState, useEffect } from "react";
+import { authFetch } from "../api/authFetch";
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 const FILTERS = ["all", "published", "draft", "scheduled"];
@@ -46,7 +47,8 @@ export default function Posts() {
 
   async function deletePost(id) {
     if (!confirm("Are you sure you want to delete this post?")) return;
-    const res = await fetch(API + "/posts/" + id, { method: "DELETE" });
+    // DELETE /api/posts/:id is admin-only now — needs the JWT.
+    const res = await authFetch(API + "/posts/" + id, { method: "DELETE" });
     const data = await res.json();
     if (data.success) setAllPosts((p) => p.filter((x) => x.id !== id));
   }

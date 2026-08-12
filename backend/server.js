@@ -1,9 +1,17 @@
 const express = require("express");
 const cors = require("cors");
+const bcrypt = require("bcrypt");
+const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
 const db = require("./db");
 const { pushSnapToGithub, processGifUrl } = require("./utils/githubGif");
+const {
+  signToken,
+  requireAuth,
+  requireRole,
+  requireSelfOrAdmin,
+} = require("./utils/auth");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,6 +31,19 @@ app.use(
 );
 app.use(express.json());
 
+// Applies only to the two login endpoints — throttles credential
+// stuffing / brute force attempts. Tune `max` as needed.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many login attempts. Please try again later.",
+  },
+});
+
 setInterval(async () => {
   try {
     const [result] = await db.query(`
@@ -38,6 +59,8 @@ setInterval(async () => {
     console.error("Auto-publish interval error:", err.message);
   }
 }, 60000);
+
+// ---------- Public content (no auth needed — this is what cms-frontend reads) ----------
 
 app.get("/api/posts", async (req, res) => {
   try {
@@ -72,7 +95,26 @@ app.get("/api/posts", async (req, res) => {
   }
 });
 
-app.get("/api/stats", async (req, res) => {
+app.get("/api/posts/:id", async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT * FROM posts WHERE id = ?", [
+      req.params.id,
+    ]);
+    if (!rows.length) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Post not found" });
+    }
+    res.json({ success: true, post: rows[0] });
+  } catch (err) {
+    console.error("Error fetching post:", err.message);
+    res.status(500).json({ success: false, message: "Failed to fetch post" });
+  }
+});
+
+// ---------- Admin-only stats & dashboard ----------
+
+app.get("/api/stats", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const [[published]] = await db.query(
       "SELECT COUNT(*) count FROM posts WHERE status='published'",
@@ -103,7 +145,9 @@ app.get("/api/stats", async (req, res) => {
   }
 });
 
-app.post("/api/posts", async (req, res) => {
+// ---------- Posts (admin write access) ----------
+
+app.post("/api/posts", requireAuth, requireRole("admin"), async (req, res) => {
   const {
     title,
     slug,
@@ -168,40 +212,159 @@ app.post("/api/posts", async (req, res) => {
   }
 });
 
-app.get("/api/posts/:id", async (req, res) => {
-  try {
-    const [rows] = await db.query("SELECT * FROM posts WHERE id = ?", [
-      req.params.id,
-    ]);
-    if (!rows.length) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Post not found" });
-    }
-    res.json({ success: true, post: rows[0] });
-  } catch (err) {
-    console.error("Error fetching post:", err.message);
-    res.status(500).json({ success: false, message: "Failed to fetch post" });
-  }
-});
+app.put(
+  "/api/posts/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    const {
+      title,
+      slug,
+      excerpt,
+      content,
+      category,
+      tags,
+      author,
+      status,
+      scheduled_at,
+      gif_url,
+    } = req.body;
 
-app.post("/api/login", async (req, res) => {
+    const published_at = status === "published" ? new Date() : null;
+
+    try {
+      const optimizedGifUrl = await processGifUrl(gif_url);
+
+      await db.query(
+        `UPDATE posts SET
+        title = ?, slug = ?, excerpt = ?, content = ?,
+        category = ?, tags = ?, author = ?, status = ?,
+        scheduled_at = ?, published_at = ?,gif_url=? 
+       WHERE id = ?`,
+        [
+          title,
+          slug,
+          excerpt,
+          content,
+          category,
+          tags,
+          author,
+          status,
+          scheduled_at || null,
+          published_at,
+          optimizedGifUrl,
+          req.params.id,
+        ],
+      );
+      res.json({ success: true, message: "Post updated successfully" });
+    } catch (err) {
+      console.error("Error updating post:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to update post" });
+    }
+  },
+);
+
+app.patch(
+  "/api/posts/reorder",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    const { orderedIds } = req.body;
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "orderedIds array required" });
+    }
+    try {
+      const updates = orderedIds.map((id, index) =>
+        db.query("UPDATE posts SET priority = ? WHERE id = ?", [index, id]),
+      );
+      await Promise.all(updates);
+      res.json({ success: true, message: "Order saved" });
+    } catch (err) {
+      console.error("Error saving order:", err.message);
+      res.status(500).json({ success: false, message: "Failed to save order" });
+    }
+  },
+);
+
+app.patch(
+  "/api/posts/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    const { status } = req.body;
+    const published_at = status === "published" ? new Date() : null;
+    try {
+      await db.query(
+        "UPDATE posts SET status = ?, published_at = ? WHERE id = ?",
+        [status, published_at, req.params.id],
+      );
+      res.json({ success: true, message: "Post updated" });
+    } catch (err) {
+      console.error("Error updating post:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to update post" });
+    }
+  },
+);
+
+app.delete(
+  "/api/posts/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      await db.query("DELETE FROM posts WHERE id = ?", [req.params.id]);
+      res.json({ success: true, message: "Post deleted" });
+    } catch (err) {
+      console.error("Error deleting post:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to delete post" });
+    }
+  },
+);
+
+// ---------- Admin login ----------
+
+app.post("/api/login", loginLimiter, async (req, res) => {
   const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Email and password are required" });
+  }
 
   const [rows] = await db.query("SELECT * FROM users WHERE email=?", [email]);
 
   if (!rows.length) {
-    return res.status(401).json({ success: false });
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid email or password" });
   }
 
   const user = rows[0];
+  const passwordOk = await bcrypt.compare(password, user.password);
 
-  if (user.password !== password) {
-    return res.status(401).json({ success: false });
+  if (!passwordOk) {
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid email or password" });
   }
 
-  res.json({ success: true, user });
+  // user.role comes from the `role` column (defaults to "user" if unset).
+  const token = signToken({ id: user.id, role: user.role || "user" });
+  const { password: _pw, ...safeUser } = user;
+
+  res.json({ success: true, token, user: safeUser });
 });
+
+// ---------- Customers (public signup/login, everything else locked down) ----------
 
 app.post("/api/customers/signup", async (req, res) => {
   const { name, email, phone, password } = req.body;
@@ -214,9 +377,10 @@ app.post("/api/customers/signup", async (req, res) => {
   }
 
   try {
+    const hashed = await bcrypt.hash(password, 10);
     const [result] = await db.query(
       "INSERT INTO customers (name, email, phone, password) VALUES (?, ?, ?, ?)",
-      [name, email, phone || null, password],
+      [name, email, phone || null, hashed],
     );
     res.status(201).json({
       success: true,
@@ -235,224 +399,164 @@ app.post("/api/customers/signup", async (req, res) => {
 
 app.use(require("./routes/relatedAi"));
 
-app.post("/api/customers/login", async (req, res) => {
+app.post("/api/customers/login", loginLimiter, async (req, res) => {
   const { email, password } = req.body;
 
   const [rows] = await db.query("SELECT * FROM customers WHERE email = ?", [
     email,
   ]);
 
-  if (!rows.length || rows[0].password !== password) {
+  const match =
+    rows.length && (await bcrypt.compare(password, rows[0].password));
+
+  if (!match) {
     return res
       .status(401)
       .json({ success: false, message: "Invalid email or password" });
   }
 
   const { password: _pw, ...customer } = rows[0];
-  res.json({ success: true, customer });
+  const token = signToken({ id: customer.id, role: "customer" });
+  res.json({ success: true, token, customer });
 });
 
-app.get("/api/customers", async (req, res) => {
-  try {
-    const [rows] = await db.query(
-      "SELECT id, name, email, phone, created_at FROM customers ORDER BY created_at DESC",
-    );
-    res.json({ success: true, customers: rows });
-  } catch (err) {
-    console.error("Error fetching customers:", err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch customers" });
-  }
-});
-
-app.delete("/api/customers/:id", async (req, res) => {
-  try {
-    await db.query("DELETE FROM customers WHERE id = ?", [req.params.id]);
-    res.json({ success: true, message: "Customer deleted" });
-  } catch (err) {
-    console.error("Error deleting customer:", err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to delete customer" });
-  }
-});
-
-app.get("/api/customers/:id", async (req, res) => {
-  try {
-    const [rows] = await db.query(
-      "SELECT id, name, email, phone, created_at FROM customers WHERE id = ?",
-      [req.params.id],
-    );
-    if (!rows.length) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Customer not found" });
-    }
-    res.json({ success: true, customer: rows[0] });
-  } catch (err) {
-    console.error("Error fetching customer:", err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch customer" });
-  }
-});
-
-app.put("/api/customers/:id", async (req, res) => {
-  const { name, email, phone, currentPassword, newPassword } = req.body;
-
-  if (!name || !email) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Name and email are required" });
-  }
-
-  try {
-    // If changing password, verify the current one first
-    if (newPassword) {
-      if (!currentPassword) {
-        return res.status(400).json({
-          success: false,
-          message: "Current password is required to set a new password",
-        });
-      }
+// Admin-only: list every customer.
+app.get(
+  "/api/customers",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
       const [rows] = await db.query(
-        "SELECT password FROM customers WHERE id = ?",
+        "SELECT id, name, email, phone, created_at FROM customers ORDER BY created_at DESC",
+      );
+      res.json({ success: true, customers: rows });
+    } catch (err) {
+      console.error("Error fetching customers:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to fetch customers" });
+    }
+  },
+);
+
+// Admin-only: remove a customer account.
+app.delete(
+  "/api/customers/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      await db.query("DELETE FROM customers WHERE id = ?", [req.params.id]);
+      res.json({ success: true, message: "Customer deleted" });
+    } catch (err) {
+      console.error("Error deleting customer:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to delete customer" });
+    }
+  },
+);
+
+// A customer can read their own profile; an admin can read anyone's. (IDOR fix)
+app.get(
+  "/api/customers/:id",
+  requireAuth,
+  requireSelfOrAdmin("id"),
+  async (req, res) => {
+    try {
+      const [rows] = await db.query(
+        "SELECT id, name, email, phone, created_at FROM customers WHERE id = ?",
         [req.params.id],
       );
-      if (!rows.length || rows[0].password !== currentPassword) {
+      if (!rows.length) {
         return res
-          .status(401)
-          .json({ success: false, message: "Current password is incorrect" });
+          .status(404)
+          .json({ success: false, message: "Customer not found" });
       }
+      res.json({ success: true, customer: rows[0] });
+    } catch (err) {
+      console.error("Error fetching customer:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to fetch customer" });
     }
+  },
+);
 
-    if (newPassword) {
-      await db.query(
-        "UPDATE customers SET name = ?, email = ?, phone = ?, password = ? WHERE id = ?",
-        [name, email, phone || null, newPassword, req.params.id],
-      );
-    } else {
-      await db.query(
-        "UPDATE customers SET name = ?, email = ?, phone = ? WHERE id = ?",
-        [name, email, phone || null, req.params.id],
-      );
-    }
+// A customer can edit only their own profile; an admin can edit anyone's. (IDOR fix)
+app.put(
+  "/api/customers/:id",
+  requireAuth,
+  requireSelfOrAdmin("id"),
+  async (req, res) => {
+    const { name, email, phone, currentPassword, newPassword } = req.body;
 
-    const [rows] = await db.query(
-      "SELECT id, name, email, phone, created_at FROM customers WHERE id = ?",
-      [req.params.id],
-    );
-    res.json({
-      success: true,
-      message: "Profile updated",
-      customer: rows[0],
-    });
-  } catch (err) {
-    if (err.code === "ER_DUP_ENTRY") {
+    if (!name || !email) {
       return res
-        .status(409)
-        .json({ success: false, message: "Email already in use" });
+        .status(400)
+        .json({ success: false, message: "Name and email are required" });
     }
-    console.error("Error updating customer:", err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to update profile" });
-  }
-});
 
-app.put("/api/posts/:id", async (req, res) => {
-  const {
-    title,
-    slug,
-    excerpt,
-    content,
-    category,
-    tags,
-    author,
-    status,
-    scheduled_at,
-    gif_url,
-  } = req.body;
+    try {
+      if (newPassword) {
+        if (!currentPassword) {
+          return res.status(400).json({
+            success: false,
+            message: "Current password is required to set a new password",
+          });
+        }
+        const [rows] = await db.query(
+          "SELECT password FROM customers WHERE id = ?",
+          [req.params.id],
+        );
+        const currentOk =
+          rows.length &&
+          (await bcrypt.compare(currentPassword, rows[0].password));
+        if (!currentOk) {
+          return res
+            .status(401)
+            .json({ success: false, message: "Current password is incorrect" });
+        }
+      }
 
-  const published_at = status === "published" ? new Date() : null;
+      if (newPassword) {
+        const hashed = await bcrypt.hash(newPassword, 10);
+        await db.query(
+          "UPDATE customers SET name = ?, email = ?, phone = ?, password = ? WHERE id = ?",
+          [name, email, phone || null, hashed, req.params.id],
+        );
+      } else {
+        await db.query(
+          "UPDATE customers SET name = ?, email = ?, phone = ? WHERE id = ?",
+          [name, email, phone || null, req.params.id],
+        );
+      }
 
-  try {
-    const optimizedGifUrl = await processGifUrl(gif_url);
+      const [rows] = await db.query(
+        "SELECT id, name, email, phone, created_at FROM customers WHERE id = ?",
+        [req.params.id],
+      );
+      res.json({
+        success: true,
+        message: "Profile updated",
+        customer: rows[0],
+      });
+    } catch (err) {
+      if (err.code === "ER_DUP_ENTRY") {
+        return res
+          .status(409)
+          .json({ success: false, message: "Email already in use" });
+      }
+      console.error("Error updating customer:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to update profile" });
+    }
+  },
+);
 
-    await db.query(
-      `UPDATE posts SET
-        title = ?, slug = ?, excerpt = ?, content = ?,
-        category = ?, tags = ?, author = ?, status = ?,
-        scheduled_at = ?, published_at = ?,gif_url=? 
-       WHERE id = ?`,
-      [
-        title,
-        slug,
-        excerpt,
-        content,
-        category,
-        tags,
-        author,
-        status,
-        scheduled_at || null,
-        published_at,
-        optimizedGifUrl,
-        req.params.id,
-      ],
-    );
-    res.json({ success: true, message: "Post updated successfully" });
-  } catch (err) {
-    console.error("Error updating post:", err.message);
-    res.status(500).json({ success: false, message: "Failed to update post" });
-  }
-});
-
-app.patch("/api/posts/reorder", async (req, res) => {
-  const { orderedIds } = req.body;
-  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
-    return res
-      .status(400)
-      .json({ success: false, message: "orderedIds array required" });
-  }
-  try {
-    const updates = orderedIds.map((id, index) =>
-      db.query("UPDATE posts SET priority = ? WHERE id = ?", [index, id]),
-    );
-    await Promise.all(updates);
-    res.json({ success: true, message: "Order saved" });
-  } catch (err) {
-    console.error("Error saving order:", err.message);
-    res.status(500).json({ success: false, message: "Failed to save order" });
-  }
-});
-
-app.patch("/api/posts/:id", async (req, res) => {
-  const { status } = req.body;
-  const published_at = status === "published" ? new Date() : null;
-  try {
-    await db.query(
-      "UPDATE posts SET status = ?, published_at = ? WHERE id = ?",
-      [status, published_at, req.params.id],
-    );
-    res.json({ success: true, message: "Post updated" });
-  } catch (err) {
-    console.error("Error updating post:", err.message);
-    res.status(500).json({ success: false, message: "Failed to update post" });
-  }
-});
-
-app.delete("/api/posts/:id", async (req, res) => {
-  try {
-    await db.query("DELETE FROM posts WHERE id = ?", [req.params.id]);
-    res.json({ success: true, message: "Post deleted" });
-  } catch (err) {
-    console.error("Error deleting post:", err.message);
-    res.status(500).json({ success: false, message: "Failed to delete post" });
-  }
-});
-
-// ---------- Quick Bites ----------
+// ---------- Quick Bites (public reads, admin writes) ----------
 
 app.get("/api/quickbites", async (req, res) => {
   try {
@@ -487,101 +591,126 @@ app.get("/api/quickbites/:id", async (req, res) => {
   }
 });
 
-app.post("/api/quickbites", async (req, res) => {
-  const { title, excerpt, gif_url } = req.body;
+app.post(
+  "/api/quickbites",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    const { title, excerpt, gif_url } = req.body;
 
-  if (!title) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Title is required" });
-  }
+    if (!title) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Title is required" });
+    }
 
-  if (!gif_url) {
-    return res
-      .status(400)
-      .json({ success: false, message: "GIF URL is required" });
-  }
+    if (!gif_url) {
+      return res
+        .status(400)
+        .json({ success: false, message: "GIF URL is required" });
+    }
 
-  try {
-    const optimizedGifUrl = await processGifUrl(gif_url);
+    try {
+      const optimizedGifUrl = await processGifUrl(gif_url);
 
-    const [result] = await db.query(
-      "INSERT INTO quick_bites (title, excerpt, gif_url) VALUES (?, ?, ?)",
-      [title, excerpt || null, optimizedGifUrl],
-    );
-    res.status(201).json({
-      success: true,
-      message: "Quick bite saved successfully",
-      quickBiteId: result.insertId,
-    });
-  } catch (err) {
-    console.error("Error saving quick bite:", err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to save quick bite" });
-  }
-});
+      const [result] = await db.query(
+        "INSERT INTO quick_bites (title, excerpt, gif_url) VALUES (?, ?, ?)",
+        [title, excerpt || null, optimizedGifUrl],
+      );
+      res.status(201).json({
+        success: true,
+        message: "Quick bite saved successfully",
+        quickBiteId: result.insertId,
+      });
+    } catch (err) {
+      console.error("Error saving quick bite:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to save quick bite" });
+    }
+  },
+);
 
-app.put("/api/quickbites/:id", async (req, res) => {
-  const { title, excerpt, gif_url } = req.body;
+app.put(
+  "/api/quickbites/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    const { title, excerpt, gif_url } = req.body;
 
-  if (!title) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Title is required" });
-  }
+    if (!title) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Title is required" });
+    }
 
-  try {
-    const optimizedGifUrl = gif_url ? await processGifUrl(gif_url) : null;
+    try {
+      const optimizedGifUrl = gif_url ? await processGifUrl(gif_url) : null;
 
-    await db.query(
-      "UPDATE quick_bites SET title = ?, excerpt = ?, gif_url = ? WHERE id = ?",
-      [title, excerpt || null, optimizedGifUrl, req.params.id],
-    );
-    res.json({ success: true, message: "Quick bite updated successfully" });
-  } catch (err) {
-    console.error("Error updating quick bite:", err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to update quick bite" });
-  }
-});
+      await db.query(
+        "UPDATE quick_bites SET title = ?, excerpt = ?, gif_url = ? WHERE id = ?",
+        [title, excerpt || null, optimizedGifUrl, req.params.id],
+      );
+      res.json({ success: true, message: "Quick bite updated successfully" });
+    } catch (err) {
+      console.error("Error updating quick bite:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to update quick bite" });
+    }
+  },
+);
 
-app.patch("/api/quickbites/reorder", async (req, res) => {
-  const { orderedIds } = req.body;
-  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
-    return res
-      .status(400)
-      .json({ success: false, message: "orderedIds array required" });
-  }
-  try {
-    const updates = orderedIds.map((id, index) =>
-      db.query("UPDATE quick_bites SET priority = ? WHERE id = ?", [index, id]),
-    );
-    await Promise.all(updates);
-    res.json({ success: true, message: "Order saved" });
-  } catch (err) {
-    console.error("Error saving order:", err.message);
-    res.status(500).json({ success: false, message: "Failed to save order" });
-  }
-});
+app.patch(
+  "/api/quickbites/reorder",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    const { orderedIds } = req.body;
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "orderedIds array required" });
+    }
+    try {
+      const updates = orderedIds.map((id, index) =>
+        db.query("UPDATE quick_bites SET priority = ? WHERE id = ?", [
+          index,
+          id,
+        ]),
+      );
+      await Promise.all(updates);
+      res.json({ success: true, message: "Order saved" });
+    } catch (err) {
+      console.error("Error saving order:", err.message);
+      res.status(500).json({ success: false, message: "Failed to save order" });
+    }
+  },
+);
 
-app.delete("/api/quickbites/:id", async (req, res) => {
-  try {
-    await db.query("DELETE FROM quick_bites WHERE id = ?", [req.params.id]);
-    res.json({ success: true, message: "Quick bite deleted" });
-  } catch (err) {
-    console.error("Error deleting quick bite:", err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to delete quick bite" });
-  }
-});
+app.delete(
+  "/api/quickbites/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      await db.query("DELETE FROM quick_bites WHERE id = ?", [req.params.id]);
+      res.json({ success: true, message: "Quick bite deleted" });
+    } catch (err) {
+      console.error("Error deleting quick bite:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to delete quick bite" });
+    }
+  },
+);
 
-app.get("/api/users", async (req, res) => {
+// ---------- Admin users (the CMS staff / "users" table) ----------
+
+app.get("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const [rows] = await db.query(
-      "SELECT id, name, email, created_at FROM users ORDER BY created_at DESC",
+      "SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC",
     );
     res.json({ success: true, users: rows });
   } catch (err) {
@@ -590,8 +719,10 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-app.post("/api/users", async (req, res) => {
-  const { name, email, password } = req.body;
+const ALLOWED_STAFF_ROLES = ["user", "admin"];
+
+app.post("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
+  const { name, email, password, role } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({
@@ -600,10 +731,13 @@ app.post("/api/users", async (req, res) => {
     });
   }
 
+  const finalRole = ALLOWED_STAFF_ROLES.includes(role) ? role : "user";
+
   try {
+    const hashed = await bcrypt.hash(password, 10);
     const [result] = await db.query(
-      "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-      [name, email, password],
+      "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+      [name, email, hashed, finalRole],
     );
     res.status(201).json({
       success: true,
@@ -622,15 +756,24 @@ app.post("/api/users", async (req, res) => {
   }
 });
 
-app.delete("/api/users/:id", async (req, res) => {
-  try {
-    await db.query("DELETE FROM users WHERE id = ?", [req.params.id]);
-    res.json({ success: true, message: "User deleted" });
-  } catch (err) {
-    console.error("Error deleting user:", err.message);
-    res.status(500).json({ success: false, message: "Failed to delete user" });
-  }
-});
+app.delete(
+  "/api/users/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      await db.query("DELETE FROM users WHERE id = ?", [req.params.id]);
+      res.json({ success: true, message: "User deleted" });
+    } catch (err) {
+      console.error("Error deleting user:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to delete user" });
+    }
+  },
+);
+
+// ---------- Visit tracking (public write, admin-only read of aggregate stats) ----------
 
 app.post("/api/visit", async (req, res) => {
   const { visitor_id, page, category = null, post_id = null } = req.body;
@@ -650,22 +793,29 @@ app.post("/api/visit", async (req, res) => {
   }
 });
 
-app.get("/api/visits/stats", async (req, res) => {
-  try {
-    const [[total]] = await db.query(
-      "SELECT COUNT(*) count FROM customer_visits",
-    );
-    const [[unique]] = await db.query(
-      "SELECT COUNT(DISTINCT visitor_id) count FROM customer_visits",
-    );
-    const [recent] = await db.query(
-      "SELECT * FROM customer_visits ORDER BY visited_at DESC LIMIT 10",
-    );
-    res.json({ total: total.count, unique: unique.count, recent });
-  } catch (err) {
-    res.status(500).json({ success: false });
-  }
-});
+app.get(
+  "/api/visits/stats",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const [[total]] = await db.query(
+        "SELECT COUNT(*) count FROM customer_visits",
+      );
+      const [[unique]] = await db.query(
+        "SELECT COUNT(DISTINCT visitor_id) count FROM customer_visits",
+      );
+      const [recent] = await db.query(
+        "SELECT * FROM customer_visits ORDER BY visited_at DESC LIMIT 10",
+      );
+      res.json({ total: total.count, unique: unique.count, recent });
+    } catch (err) {
+      res.status(500).json({ success: false });
+    }
+  },
+);
+
+// ---------- Categories (public read, admin write) ----------
 
 app.get("/api/categories", async (req, res) => {
   try {
@@ -679,124 +829,164 @@ app.get("/api/categories", async (req, res) => {
   }
 });
 
-app.post("/api/categories", async (req, res) => {
-  const { name, gif_url } = req.body;
+app.post(
+  "/api/categories",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    const { name, gif_url } = req.body;
 
-  if (!name) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Category name is required" });
-  }
-
-  try {
-    const [result] = await db.query(
-      "INSERT INTO categories (name, gif_url) VALUES (?, ?)",
-      [name.trim(), gif_url || null],
-    );
-    res.status(201).json({
-      success: true,
-      message: "Category created",
-      categoryId: result.insertId,
-    });
-  } catch (err) {
-    if (err.code === "ER_DUP_ENTRY") {
+    if (!name) {
       return res
-        .status(409)
-        .json({ success: false, message: "Category already exists" });
+        .status(400)
+        .json({ success: false, message: "Category name is required" });
     }
-    console.error("Error creating category:", err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to create category" });
-  }
-});
 
-app.put("/api/categories/:id", async (req, res) => {
-  const { name, gif_url } = req.body;
+    try {
+      const [result] = await db.query(
+        "INSERT INTO categories (name, gif_url) VALUES (?, ?)",
+        [name.trim(), gif_url || null],
+      );
+      res.status(201).json({
+        success: true,
+        message: "Category created",
+        categoryId: result.insertId,
+      });
+    } catch (err) {
+      if (err.code === "ER_DUP_ENTRY") {
+        return res
+          .status(409)
+          .json({ success: false, message: "Category already exists" });
+      }
+      console.error("Error creating category:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to create category" });
+    }
+  },
+);
 
-  if (!name) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Category name is required" });
-  }
+app.put(
+  "/api/categories/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    const { name, gif_url } = req.body;
 
-  try {
-    await db.query("UPDATE categories SET name = ?, gif_url = ? WHERE id = ?", [
-      name.trim(),
-      gif_url || null,
-      req.params.id,
-    ]);
-    res.json({ success: true, message: "Category updated" });
-  } catch (err) {
-    if (err.code === "ER_DUP_ENTRY") {
+    if (!name) {
       return res
-        .status(409)
-        .json({ success: false, message: "Category already exists" });
+        .status(400)
+        .json({ success: false, message: "Category name is required" });
     }
-    console.error("Error updating category:", err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to update category" });
-  }
-});
 
-app.delete("/api/categories/:id", async (req, res) => {
-  try {
-    await db.query("DELETE FROM categories WHERE id = ?", [req.params.id]);
-    res.json({ success: true, message: "Category deleted" });
-  } catch (err) {
-    console.error("Error deleting category:", err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to delete category" });
-  }
-});
+    try {
+      await db.query(
+        "UPDATE categories SET name = ?, gif_url = ? WHERE id = ?",
+        [name.trim(), gif_url || null, req.params.id],
+      );
+      res.json({ success: true, message: "Category updated" });
+    } catch (err) {
+      if (err.code === "ER_DUP_ENTRY") {
+        return res
+          .status(409)
+          .json({ success: false, message: "Category already exists" });
+      }
+      console.error("Error updating category:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to update category" });
+    }
+  },
+);
+
+app.delete(
+  "/api/categories/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      await db.query("DELETE FROM categories WHERE id = ?", [req.params.id]);
+      res.json({ success: true, message: "Category deleted" });
+    } catch (err) {
+      console.error("Error deleting category:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to delete category" });
+    }
+  },
+);
+
+// ---------- Snaps ----------
 
 const multer = require("multer");
+const { fileTypeFromBuffer } = require("file-type");
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 }, // 8MB
 });
 
+const ALLOWED_SNAP_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
+
 // GitHub push + GIF fetch/optimize/rehost logic lives in
 // ./utils/githubGif.js (pushSnapToGithub, processGifUrl) so the same code
 // is shared with the one-off backfill script (scripts/backfillGifs.js).
 
-app.post("/api/snaps", upload.single("snap"), async (req, res) => {
-  const { customer_id, caption } = req.body;
+app.post(
+  "/api/snaps",
+  requireAuth,
+  requireRole("customer"),
+  upload.single("snap"),
+  async (req, res) => {
+    const { caption } = req.body;
+    // Trust the authenticated user's id, never a client-supplied customer_id —
+    // otherwise a customer could upload and attribute a snap to anyone.
+    const customer_id = req.user.id;
 
-  if (!customer_id) {
-    return res
-      .status(400)
-      .json({ success: false, message: "customer_id is required" });
-  }
-  if (!req.file) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Snap image is required" });
-  }
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Snap image is required" });
+    }
 
-  try {
-    const ext = (req.file.originalname.split(".").pop() || "jpg").toLowerCase();
-    const filename = `${customer_id}_${Date.now()}.${ext}`;
-    const { url, path } = await pushSnapToGithub(req.file.buffer, filename);
+    try {
+      const detected = await fileTypeFromBuffer(req.file.buffer);
+      if (!detected || !ALLOWED_SNAP_MIME_TYPES.includes(detected.mime)) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "Unsupported or invalid image file",
+          });
+      }
 
-    const [result] = await db.query(
-      "INSERT INTO snaps (customer_id, image_url, github_path, caption) VALUES (?, ?, ?, ?)",
-      [customer_id, url, path, caption || null],
-    );
+      const filename = `${customer_id}_${Date.now()}.${detected.ext}`;
+      const { url, path } = await pushSnapToGithub(req.file.buffer, filename);
 
-    res.status(201).json({
-      success: true,
-      message: "Snap uploaded",
-      snapId: result.insertId,
-      image_url: url,
-    });
-  } catch (err) {
-    console.error("Error creating snap:", err.message);
-    res.status(500).json({ success: false, message: "Failed to upload snap" });
-  }
-});
+      const [result] = await db.query(
+        "INSERT INTO snaps (customer_id, image_url, github_path, caption) VALUES (?, ?, ?, ?)",
+        [customer_id, url, path, caption || null],
+      );
+
+      res.status(201).json({
+        success: true,
+        message: "Snap uploaded",
+        snapId: result.insertId,
+        image_url: url,
+      });
+    } catch (err) {
+      console.error("Error creating snap:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to upload snap" });
+    }
+  },
+);
 
 app.get("/api/snaps", async (req, res) => {
   try {
@@ -819,44 +1009,67 @@ app.get("/api/snaps", async (req, res) => {
   }
 });
 
-app.post("/api/snaps/:id/react", async (req, res) => {
-  const { customer_id, reaction_type } = req.body;
-  const allowed = ["like", "smile", "tongue"];
+app.post(
+  "/api/snaps/:id/react",
+  requireAuth,
+  requireRole("customer"),
+  async (req, res) => {
+    const customer_id = req.user.id; // trust the token, not the body
+    const { reaction_type } = req.body;
+    const allowed = ["like", "smile", "tongue"];
 
-  if (!customer_id || !allowed.includes(reaction_type)) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid reaction" });
-  }
-
-  try {
-    const [existing] = await db.query(
-      "SELECT id FROM snap_reactions WHERE snap_id = ? AND customer_id = ? AND reaction_type = ?",
-      [req.params.id, customer_id, reaction_type],
-    );
-
-    if (existing.length) {
-      await db.query("DELETE FROM snap_reactions WHERE id = ?", [
-        existing[0].id,
-      ]);
-      return res.json({ success: true, action: "removed" });
+    if (!allowed.includes(reaction_type)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid reaction" });
     }
 
-    await db.query(
-      "INSERT INTO snap_reactions (snap_id, customer_id, reaction_type) VALUES (?, ?, ?)",
-      [req.params.id, customer_id, reaction_type],
-    );
-    res.json({ success: true, action: "added" });
-  } catch (err) {
-    console.error("Error saving reaction:", err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to save reaction" });
-  }
-});
+    try {
+      const [existing] = await db.query(
+        "SELECT id FROM snap_reactions WHERE snap_id = ? AND customer_id = ? AND reaction_type = ?",
+        [req.params.id, customer_id, reaction_type],
+      );
 
-app.delete("/api/snaps/:id", async (req, res) => {
+      if (existing.length) {
+        await db.query("DELETE FROM snap_reactions WHERE id = ?", [
+          existing[0].id,
+        ]);
+        return res.json({ success: true, action: "removed" });
+      }
+
+      await db.query(
+        "INSERT INTO snap_reactions (snap_id, customer_id, reaction_type) VALUES (?, ?, ?)",
+        [req.params.id, customer_id, reaction_type],
+      );
+      res.json({ success: true, action: "added" });
+    } catch (err) {
+      console.error("Error saving reaction:", err.message);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to save reaction" });
+    }
+  },
+);
+
+// Only the snap's owner or an admin can delete it.
+app.delete("/api/snaps/:id", requireAuth, async (req, res) => {
   try {
+    const [rows] = await db.query(
+      "SELECT customer_id FROM snaps WHERE id = ?",
+      [req.params.id],
+    );
+    if (!rows.length) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Snap not found" });
+    }
+    const isOwner =
+      req.user.role === "customer" && req.user.id === rows[0].customer_id;
+    const isAdmin = req.user.role === "admin";
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+
     // Note: this removes the DB row only. The image stays in the GitHub repo
     // unless you also call the Contents API's DELETE endpoint with the file's
     // sha (fetch it via a GET on the same content path first).

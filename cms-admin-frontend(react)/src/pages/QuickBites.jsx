@@ -1,6 +1,7 @@
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { useState, useEffect } from "react";
+import { authFetch } from "../api/authFetch";
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 function formatDate(dateStr) {
@@ -38,7 +39,10 @@ export default function QuickBitesAdmin() {
 
   async function deleteBite(id) {
     if (!confirm("Are you sure you want to delete this quick bite?")) return;
-    const res = await fetch(API + "/quickbites/" + id, { method: "DELETE" });
+    // DELETE /api/quickbites/:id is admin-only now — needs the JWT.
+    const res = await authFetch(API + "/quickbites/" + id, {
+      method: "DELETE",
+    });
     const data = await res.json();
     if (data.success) setAllBites((b) => b.filter((x) => x.id !== id));
   }

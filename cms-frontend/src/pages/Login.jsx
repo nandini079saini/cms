@@ -32,7 +32,7 @@ export default function Login() {
     try {
       const res = await customerLogin(email, password);
       if (res.data.success) {
-        login(res.data.customer);
+        login(res.data.customer, res.data.token);
         navigate("/");
       }
     } catch {

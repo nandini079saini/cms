@@ -2,6 +2,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import Toast from "../components/Toast";
 import { useState, useEffect } from "react";
+import { authFetch } from "../api/authFetch";
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 function initials(name) {
@@ -36,7 +37,8 @@ export default function Users() {
     setLoading(true);
     setError(false);
     try {
-      const res = await fetch(API + "/customers");
+      // Admin-only endpoint — needs the JWT.
+      const res = await authFetch(API + "/customers");
       const data = await res.json();
       if (data.success) setCustomers(data.customers);
       else setError(true);
@@ -55,7 +57,9 @@ export default function Users() {
     )
       return;
     try {
-      const res = await fetch(API + "/customers/" + id, { method: "DELETE" });
+      const res = await authFetch(API + "/customers/" + id, {
+        method: "DELETE",
+      });
       const data = await res.json();
       if (data.success) {
         setToast({ message: "User removed", type: "success" });

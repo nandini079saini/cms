@@ -28,10 +28,10 @@ export default function Login() {
       });
       const data = await res.json();
       if (data.success) {
-        login(data.user);
+        login(data.user, data.token);
         navigate("/");
       } else {
-        setError("Invalid email or password.");
+        setError(data.message || "Invalid email or password.");
       }
     } catch {
       setError("Could not connect to server. Make sure it's running.");

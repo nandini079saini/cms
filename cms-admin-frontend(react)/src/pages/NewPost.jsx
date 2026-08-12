@@ -3,6 +3,7 @@ import Topbar from "../components/Topbar";
 import Toast from "../components/Toast";
 import { useSearchParams } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
+import { authFetch } from "../api/authFetch";
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 const AUTHORS = ["Nandini S.", "Rishank T.", "Harsh K.", "Person R."];
@@ -112,7 +113,8 @@ export default function NewPost() {
     try {
       const url = postId ? API + "/posts/" + postId : API + "/posts";
       const method = postId ? "PUT" : "POST";
-      const res = await fetch(url, {
+      // POST/PUT /api/posts is admin-only now — needs the JWT.
+      const res = await authFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
