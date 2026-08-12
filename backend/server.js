@@ -579,7 +579,7 @@ app.delete("/api/quickbites/:id", async (req, res) => {
 app.get("/api/users", async (req, res) => {
   try {
     const [rows] = await db.query(
-      "SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC",
+      "SELECT id, name, email, created_at FROM users ORDER BY created_at DESC",
     );
     res.json({ success: true, users: rows });
   } catch (err) {
