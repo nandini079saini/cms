@@ -16,6 +16,13 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Render (and most hosts) sit behind a reverse proxy that sets
+// X-Forwarded-For. Without this, express-rate-limit can't tell requests
+// apart by IP and throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+// `1` = trust exactly one hop (Render's proxy) — safer than `true`,
+// which would trust the header no matter how many proxies forwarded it.
+app.set("trust proxy", 1);
+
 app.use(
   cors({
     origin: [
