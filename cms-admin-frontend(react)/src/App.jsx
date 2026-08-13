@@ -12,7 +12,6 @@ import NewPost from "./pages/NewPost";
 import ManageCategories from "./pages/ManageCategories";
 import QuickBites from "./pages/QuickBites";
 import NewQuickBite from "./pages/NewQuickBite";
-import Users from "./pages/Users";
 
 function RequireAuth({ children }) {
   const { user } = useAuth();
@@ -95,14 +94,6 @@ export default function App() {
             element={
               <RequireAuth>
                 <NewQuickBite />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/users"
-            element={
-              <RequireAuth>
-                <Users />
               </RequireAuth>
             }
           />

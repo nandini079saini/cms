@@ -140,11 +140,6 @@ export default function Sidebar() {
           Add Categories
         </NavLink>
 
-        <NavLink to="/users" style={navItemStyle}>
-          <span className="material-icons">group</span>
-          Users
-        </NavLink>
-
         <NavLink to="/" style={navItemStyle}>
           <span className="material-icons">comment</span>
           Comments
