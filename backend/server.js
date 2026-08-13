@@ -587,18 +587,35 @@ app.delete(
   requireAuth,
   requireRole("admin"),
   async (req, res) => {
+    const { id } = req.params;
+    const conn = await db.getConnection();
     try {
-      await db.query("DELETE FROM customers WHERE id = ?", [req.params.id]);
+      await conn.beginTransaction();
+
+      // Remove rows that reference this customer via foreign key,
+      // in child-to-parent order, before deleting the customer itself.
+      await conn.query("DELETE FROM snap_reactions WHERE customer_id = ?", [
+        id,
+      ]);
+      await conn.query("DELETE FROM snaps WHERE customer_id = ?", [id]);
+      await conn.query("DELETE FROM customer_visits WHERE customer_id = ?", [
+        id,
+      ]);
+      await conn.query("DELETE FROM customers WHERE id = ?", [id]);
+
+      await conn.commit();
       res.json({ success: true, message: "Customer deleted" });
     } catch (err) {
+      await conn.rollback();
       console.error("Error deleting customer:", err.message);
       res
         .status(500)
         .json({ success: false, message: "Failed to delete customer" });
+    } finally {
+      conn.release();
     }
   },
 );
-
 // A customer can read their own profile; an admin can read anyone's. (IDOR fix)
 app.get(
   "/api/customers/:id",
