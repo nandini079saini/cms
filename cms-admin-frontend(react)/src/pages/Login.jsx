@@ -1,529 +1,414 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
-import { customerLogin, customerSignup, forgotPassword } from "../api/posts";
 
-const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+const API = `${import.meta.env.VITE_API_URL}/api`;
 
 export default function Login() {
-  const [tab, setTab] = useState("login");
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [isForgotView, setIsForgotView] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  // Switching tabs used to leave whatever you'd typed in the previous tab
-  // sitting in state (e.g. a password typed on Login would still be there
-  // if you clicked over to Sign Up) — this makes sure every tab starts clean.
-  const switchTab = (t) => {
-    setTab(t);
+  async function doLogin() {
     setError("");
     setSuccess("");
-    setName("");
-    setEmail("");
-    setPhone("");
-    setPassword("");
-    setShowPassword(false);
-  };
-
-  const validateFields = (fields) => {
-    if (fields.email !== undefined && !isValidEmail(fields.email))
-      return "Please enter a valid email address.";
-    if (fields.password !== undefined && fields.password.length < 8)
-      return "Password must be at least 8 characters.";
-    return null;
-  };
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError("");
-    const err = validateFields({ email, password });
-    if (err) return setError(err);
+    if (!email || !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
+    setLoading(true);
     try {
-      const res = await customerLogin(email, password);
-      if (res.data.success) {
-        login(res.data.customer, res.data.token);
+      const res = await fetch(API + "/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        login(data.user, data.token);
         navigate("/");
+      } else {
+        setError(data.message || "Invalid email or password.");
       }
     } catch {
-      setError("Invalid email or password");
+      setError("Could not connect to server. Make sure it's running.");
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
-  const handleSignup = async (e) => {
-    e.preventDefault();
-    setError("");
-    const err = validateFields({ email, password });
-    if (err) return setError(err);
-    try {
-      const res = await customerSignup(name, email, phone, password);
-      if (res.data.success) {
-        setSuccess("Account created! Please log in.");
-        setTab("login");
-        setName("");
-        setEmail("");
-        setPhone("");
-        setPassword("");
-        setShowPassword(false);
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || "Signup failed");
-    }
-  };
-
-  const handleForgot = async (e) => {
-    e.preventDefault();
+  async function doForgot() {
     setError("");
     setSuccess("");
-    if (!isValidEmail(email))
-      return setError("Please enter a valid email address.");
-    try {
-      const res = await forgotPassword(email);
-      if (res.data.success) {
-        setSuccess("Password reset link sent to your email.");
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to send reset link.");
+    if (!email) {
+      setError("Please enter your email.");
+      return;
     }
-  };
-
-  const inputStyle = {
-    width: "100%",
-    padding: "0.8rem 1rem",
-    border: "1px solid #ddd",
-    borderRadius: "8px",
-    fontSize: "0.92rem",
-    outline: "none",
-    color: "#222",
-    background: "#fff",
-    boxSizing: "border-box",
-    transition: "border-color 0.15s",
-  };
-
-  // Same as inputStyle but with room on the right for the eye toggle button.
-  const passwordInputStyle = {
-    ...inputStyle,
-    paddingRight: "2.75rem",
-  };
-
-  const labelStyle = {
-    display: "block",
-    fontSize: "0.82rem",
-    fontWeight: 600,
-    color: "#222",
-    marginBottom: "0.4rem",
-  };
-
-  const eyeButtonStyle = {
-    position: "absolute",
-    right: "0.6rem",
-    top: "50%",
-    transform: "translateY(-50%)",
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    padding: "0.25rem",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#717171",
-    fontSize: "1.1rem",
-    lineHeight: 1,
-  };
-
-  // Small reusable eye / eye-off icon so we don't need an icon library.
-  const EyeIcon = ({ off }) =>
-    off ? (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-        <line x1="1" y1="1" x2="23" y2="23" />
-      </svg>
-    ) : (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
-    );
+    setLoading(true);
+    try {
+      const res = await fetch(API + "/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(data.message || "Reset link sent to your email.");
+      } else {
+        setError(data.message || "Failed to send reset link.");
+      }
+    } catch {
+      setError("Could not connect to server. Make sure it's running.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <main
+    <div
       style={{
-        minHeight: "calc(100vh - 64px)",
-        background: "#f7f7f7",
+        minHeight: "100vh",
         display: "flex",
-        alignItems: "center",
         justifyContent: "center",
-        padding: "2rem 1rem",
+        alignItems: "center",
+        background: "var(--bg)",
       }}
     >
       <div
         style={{
-          background: "#fff",
-          border: "1px solid #ebebeb",
-          borderRadius: "16px",
-          padding: "2.5rem",
-          width: "100%",
-          maxWidth: "420px",
-          boxShadow: "0 4px 32px rgba(0,0,0,0.08)",
+          width: 420,
+          background: "var(--surface)",
+          border: `1px solid var(--border)`,
+          borderRadius: 20,
+          padding: "36px 36px 32px",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 6,
+          }}
+        >
+          <span
+            className="material-icons"
+            style={{ fontSize: 28, color: "var(--accent)" }}
+          >
+            edit_note
+          </span>
           <h1
             style={{
+              margin: 0,
+              fontSize: 20,
               fontWeight: 700,
-              fontSize: "1.35rem",
-              color: "#222",
-              margin: "0 0 0.25rem",
+              color: "var(--text)",
             }}
           >
-            {tab === "login"
-              ? "Log in to CMSTesting"
-              : tab === "signup"
-                ? "Create your account"
-                : "Reset your password"}
+            CMSTesting
           </h1>
         </div>
 
-        {tab !== "forgot" && (
-          <>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-                marginBottom: "1.5rem",
-              }}
-            >
-              <hr
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderTop: "1px solid #ebebeb",
-                }}
-              />
-              <span style={{ fontSize: "0.78rem", color: "#717171" }}>
-                or continue with email
-              </span>
-              <hr
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderTop: "1px solid #ebebeb",
-                }}
-              />
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                background: "#f7f7f7",
-                borderRadius: "8px",
-                padding: "3px",
-                marginBottom: "1.5rem",
-              }}
-            >
-              {["login", "signup"].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => switchTab(t)}
-                  style={{
-                    flex: 1,
-                    padding: "0.5rem",
-                    borderRadius: "6px",
-                    border: "none",
-                    background: tab === t ? "#fff" : "transparent",
-                    color: tab === t ? "#222" : "#717171",
-                    fontWeight: tab === t ? 600 : 400,
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                    boxShadow: tab === t ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
-                    transition: "all 0.15s",
-                    textTransform: "capitalize",
-                  }}
-                >
-                  {t === "login" ? "Log in" : "Sign up"}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        <p
+          style={{
+            fontSize: 13,
+            color: "var(--muted)",
+            marginBottom: 28,
+            paddingBottom: 24,
+            borderBottom: `1px solid var(--border)`,
+          }}
+        >
+          {isForgotView
+            ? "Enter your email to reset your password"
+            : "Sign in to your account"}
+        </p>
 
         {error && (
           <div
             style={{
-              background: "#fff0f2",
-              color: "var(--accent)",
-              border: "1px solid #ffd0d8",
-              borderRadius: "8px",
-              padding: "0.65rem 1rem",
-              fontSize: "0.85rem",
-              marginBottom: "1rem",
+              background: "rgba(248,113,113,0.1)",
+              border: "1px solid rgba(248,113,113,0.3)",
+              borderRadius: 8,
+              padding: "10px 14px",
+              fontSize: 12,
+              color: "var(--danger)",
+              marginBottom: 16,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
+            <span className="material-icons" style={{ fontSize: 16 }}>
+              error_outline
+            </span>
             {error}
           </div>
         )}
+
         {success && (
           <div
             style={{
-              background: "#f0fff8",
-              color: "#00a86b",
-              border: "1px solid #b3f0d9",
-              borderRadius: "8px",
-              padding: "0.65rem 1rem",
-              fontSize: "0.85rem",
-              marginBottom: "1rem",
+              background: "rgba(52,211,153,0.1)",
+              border: "1px solid rgba(52,211,153,0.3)",
+              borderRadius: 8,
+              padding: "10px 14px",
+              fontSize: 12,
+              color: "#34d399",
+              marginBottom: 16,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
+            <span className="material-icons" style={{ fontSize: 16 }}>
+              check_circle_outline
+            </span>
             {success}
           </div>
         )}
 
-        {tab === "login" && (
-          <form
-            onSubmit={handleLogin}
-            style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+        <div style={{ marginBottom: 16 }}>
+          <label
+            style={{
+              display: "block",
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.8px",
+              color: "var(--muted)",
+              marginBottom: 7,
+            }}
           >
-            <div>
-              <label style={labelStyle}>Email</label>
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                required
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Password</label>
-              <div style={{ position: "relative" }}>
-                <input
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  placeholder="Min. 8 characters"
-                  required
-                  minLength={8}
-                  style={passwordInputStyle}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  style={eyeButtonStyle}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  tabIndex={-1}
-                >
-                  <EyeIcon off={showPassword} />
-                </button>
-              </div>
-              <div style={{ textAlign: "right", marginTop: "0.5rem" }}>
-                <span
-                  onClick={() => switchTab("forgot")}
-                  style={{
-                    fontSize: "0.82rem",
-                    color: "var(--accent)",
-                    cursor: "pointer",
-                    fontWeight: 500,
-                  }}
-                >
-                  Forgot Password?
-                </span>
-              </div>
-            </div>
-            <button
-              type="submit"
-              style={{
-                background:
-                  "linear-gradient(135deg, var(--accent), var(--accent-dark))",
-                color: "#fff",
-                border: "none",
-                padding: "0.85rem",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontWeight: 600,
-                fontSize: "0.92rem",
-                marginTop: "0.25rem",
-                transition: "opacity 0.15s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-            >
-              Log in
-            </button>
-          </form>
-        )}
+            Email
+          </label>
 
-        {tab === "signup" && (
-          <form
-            onSubmit={handleSignup}
-            style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
-          >
-            <div>
-              <label style={labelStyle}>Full Name</label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                type="text"
-                autoComplete="name"
-                placeholder="Your name"
-                required
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Email</label>
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                required
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>
-                Phone{" "}
-                <span style={{ fontWeight: 400, color: "#717171" }}>
-                  (optional)
-                </span>
-              </label>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                type="tel"
-                autoComplete="tel"
-                placeholder="+91 98765 43210"
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Password</label>
-              <div style={{ position: "relative" }}>
-                <input
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  placeholder="Min. 8 characters"
-                  required
-                  minLength={8}
-                  style={passwordInputStyle}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  style={eyeButtonStyle}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  tabIndex={-1}
-                >
-                  <EyeIcon off={showPassword} />
-                </button>
-              </div>
-            </div>
-            <button
-              type="submit"
+          <div style={{ position: "relative" }}>
+            <span
               style={{
-                background:
-                  "linear-gradient(135deg, var(--accent), var(--accent-dark))",
-                color: "#fff",
-                border: "none",
-                padding: "0.85rem",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontWeight: 600,
-                fontSize: "0.92rem",
-                marginTop: "0.25rem",
-                transition: "opacity 0.15s",
+                position: "absolute",
+                left: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--muted)",
+                pointerEvents: "none",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
             >
-              Create Account
-            </button>
-          </form>
-        )}
+              <span className="material-icons" style={{ fontSize: 17 }}>
+                mail_outline
+              </span>
+            </span>
 
-        {tab === "forgot" && (
-          <form
-            onSubmit={handleForgot}
-            style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
-          >
-            <div>
-              <label style={labelStyle}>Email</label>
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                required
-                style={inputStyle}
-              />
-            </div>
-            <button
-              type="submit"
+            <input
+              type="email"
+              placeholder="admin@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === "Enter" && (isForgotView ? doForgot() : doLogin())
+              }
               style={{
-                background:
-                  "linear-gradient(135deg, var(--accent), var(--accent-dark))",
-                color: "#fff",
-                border: "none",
-                padding: "0.85rem",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontWeight: 600,
-                fontSize: "0.92rem",
-                marginTop: "0.25rem",
-                transition: "opacity 0.15s",
+                width: "100%",
+                background: "var(--surface2)",
+                border: `1px solid var(--border)`,
+                borderRadius: 8,
+                padding: "10px 14px",
+                paddingLeft: 40,
+                fontSize: 13,
+                color: "var(--text)",
+                fontFamily: "Inter, sans-serif",
+                outline: "none",
+                boxSizing: "border-box",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+            />
+          </div>
+        </div>
+
+        {!isForgotView && (
+          <div style={{ marginBottom: 16 }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 11,
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.8px",
+                color: "var(--muted)",
+                marginBottom: 7,
+              }}
             >
-              Send Reset Link
-            </button>
-            <div style={{ textAlign: "center", marginTop: "0.5rem" }}>
+              Password
+            </label>
+
+            <div style={{ position: "relative" }}>
               <span
-                onClick={() => switchTab("login")}
                 style={{
-                  fontSize: "0.85rem",
-                  color: "#717171",
-                  cursor: "pointer",
-                  fontWeight: 500,
+                  position: "absolute",
+                  left: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "var(--muted)",
+                  pointerEvents: "none",
                 }}
               >
-                Back to Log In
+                <span className="material-icons" style={{ fontSize: 17 }}>
+                  lock_outline
+                </span>
               </span>
+
+              <input
+                type={showPw ? "text" : "password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && doLogin()}
+                style={{
+                  width: "100%",
+                  background: "var(--surface2)",
+                  border: `1px solid var(--border)`,
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  paddingLeft: 40,
+                  paddingRight: 42,
+                  fontSize: 13,
+                  color: "var(--text)",
+                  fontFamily: "Inter, sans-serif",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+
+              <button
+                style={{
+                  position: "absolute",
+                  right: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--muted)",
+                  padding: 0,
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                onClick={() => setShowPw((s) => !s)}
+              >
+                <span className="material-icons" style={{ fontSize: 17 }}>
+                  {showPw ? "visibility_off" : "visibility"}
+                </span>
+              </button>
             </div>
-          </form>
+          </div>
         )}
+
+        {isForgotView ? (
+          <button
+            style={{
+              width: "100%",
+              justifyContent: "center",
+              marginTop: 8,
+              padding: 11,
+              fontSize: 14,
+              borderRadius: 9,
+              border: "none",
+              background: "var(--accent)",
+              color: "#fff",
+              fontWeight: 600,
+              fontFamily: "Inter, sans-serif",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              opacity: loading ? 0.7 : 1,
+            }}
+            onClick={doForgot}
+            disabled={loading}
+          >
+            <span className="material-icons" style={{ fontSize: 17 }}>
+              send
+            </span>
+            {loading ? "Sending…" : "Send Reset Link"}
+          </button>
+        ) : (
+          <button
+            style={{
+              width: "100%",
+              justifyContent: "center",
+              marginTop: 8,
+              padding: 11,
+              fontSize: 14,
+              borderRadius: 9,
+              border: "none",
+              background: "var(--accent)",
+              color: "#fff",
+              fontWeight: 600,
+              fontFamily: "Inter, sans-serif",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              opacity: loading ? 0.7 : 1,
+            }}
+            onClick={doLogin}
+            disabled={loading}
+          >
+            <span className="material-icons" style={{ fontSize: 17 }}>
+              login
+            </span>
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
+        )}
+
+        <div style={{ marginTop: 20, textAlign: "center" }}>
+          {isForgotView ? (
+            <button
+              onClick={() => {
+                setIsForgotView(false);
+                setError("");
+                setSuccess("");
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--accent)",
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "Inter, sans-serif",
+              }}
+            >
+              Back to Sign In
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setIsForgotView(true);
+                setError("");
+                setSuccess("");
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--muted)",
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "Inter, sans-serif",
+                textDecoration: "underline",
+              }}
+            >
+              Forgot Password?
+            </button>
+          )}
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
