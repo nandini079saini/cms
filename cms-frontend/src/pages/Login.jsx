@@ -11,10 +11,25 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Switching tabs used to leave whatever you'd typed in the previous tab
+  // sitting in state (e.g. a password typed on Login would still be there
+  // if you clicked over to Sign Up) — this makes sure every tab starts clean.
+  const switchTab = (t) => {
+    setTab(t);
+    setError("");
+    setSuccess("");
+    setName("");
+    setEmail("");
+    setPhone("");
+    setPassword("");
+    setShowPassword(false);
+  };
 
   const validateFields = (fields) => {
     if (fields.email !== undefined && !isValidEmail(fields.email))
@@ -54,6 +69,7 @@ export default function Login() {
         setEmail("");
         setPhone("");
         setPassword("");
+        setShowPassword(false);
       }
     } catch (err) {
       setError(err.response?.data?.message || "Signup failed");
@@ -64,7 +80,8 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setSuccess("");
-    if (!isValidEmail(email)) return setError("Please enter a valid email address.");
+    if (!isValidEmail(email))
+      return setError("Please enter a valid email address.");
     try {
       const res = await forgotPassword(email);
       if (res.data.success) {
@@ -88,6 +105,12 @@ export default function Login() {
     transition: "border-color 0.15s",
   };
 
+  // Same as inputStyle but with room on the right for the eye toggle button.
+  const passwordInputStyle = {
+    ...inputStyle,
+    paddingRight: "2.75rem",
+  };
+
   const labelStyle = {
     display: "block",
     fontSize: "0.82rem",
@@ -95,6 +118,55 @@ export default function Login() {
     color: "#222",
     marginBottom: "0.4rem",
   };
+
+  const eyeButtonStyle = {
+    position: "absolute",
+    right: "0.6rem",
+    top: "50%",
+    transform: "translateY(-50%)",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    padding: "0.25rem",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#717171",
+    fontSize: "1.1rem",
+    lineHeight: 1,
+  };
+
+  // Small reusable eye / eye-off icon so we don't need an icon library.
+  const EyeIcon = ({ off }) =>
+    off ? (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </svg>
+    ) : (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    );
 
   return (
     <main
@@ -127,7 +199,11 @@ export default function Login() {
               margin: "0 0 0.25rem",
             }}
           >
-            {tab === "login" ? "Log in to CMSTesting" : tab === "signup" ? "Create your account" : "Reset your password"}
+            {tab === "login"
+              ? "Log in to CMSTesting"
+              : tab === "signup"
+                ? "Create your account"
+                : "Reset your password"}
           </h1>
         </div>
 
@@ -142,13 +218,21 @@ export default function Login() {
               }}
             >
               <hr
-                style={{ flex: 1, border: "none", borderTop: "1px solid #ebebeb" }}
+                style={{
+                  flex: 1,
+                  border: "none",
+                  borderTop: "1px solid #ebebeb",
+                }}
               />
               <span style={{ fontSize: "0.78rem", color: "#717171" }}>
                 or continue with email
               </span>
               <hr
-                style={{ flex: 1, border: "none", borderTop: "1px solid #ebebeb" }}
+                style={{
+                  flex: 1,
+                  border: "none",
+                  borderTop: "1px solid #ebebeb",
+                }}
               />
             </div>
 
@@ -164,11 +248,7 @@ export default function Login() {
               {["login", "signup"].map((t) => (
                 <button
                   key={t}
-                  onClick={() => {
-                    setTab(t);
-                    setError("");
-                    setSuccess("");
-                  }}
+                  onClick={() => switchTab(t)}
                   style={{
                     flex: 1,
                     padding: "0.5rem",
@@ -233,6 +313,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
+                autoComplete="email"
                 placeholder="you@example.com"
                 required
                 style={inputStyle}
@@ -240,22 +321,30 @@ export default function Login() {
             </div>
             <div>
               <label style={labelStyle}>Password</label>
-              <input
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                type="password"
-                placeholder="Min. 8 characters"
-                required
-                minLength={8}
-                style={inputStyle}
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  placeholder="Min. 8 characters"
+                  required
+                  minLength={8}
+                  style={passwordInputStyle}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  style={eyeButtonStyle}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  <EyeIcon off={showPassword} />
+                </button>
+              </div>
               <div style={{ textAlign: "right", marginTop: "0.5rem" }}>
                 <span
-                  onClick={() => {
-                    setTab("forgot");
-                    setError("");
-                    setSuccess("");
-                  }}
+                  onClick={() => switchTab("forgot")}
                   style={{
                     fontSize: "0.82rem",
                     color: "var(--accent)",
@@ -301,6 +390,7 @@ export default function Login() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 type="text"
+                autoComplete="name"
                 placeholder="Your name"
                 required
                 style={inputStyle}
@@ -312,6 +402,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
+                autoComplete="email"
                 placeholder="you@example.com"
                 required
                 style={inputStyle}
@@ -328,21 +419,34 @@ export default function Login() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 type="tel"
+                autoComplete="tel"
                 placeholder="+91 98765 43210"
                 style={inputStyle}
               />
             </div>
             <div>
               <label style={labelStyle}>Password</label>
-              <input
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                type="password"
-                placeholder="Min. 8 characters"
-                required
-                minLength={8}
-                style={inputStyle}
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  placeholder="Min. 8 characters"
+                  required
+                  minLength={8}
+                  style={passwordInputStyle}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  style={eyeButtonStyle}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  <EyeIcon off={showPassword} />
+                </button>
+              </div>
             </div>
             <button
               type="submit"
@@ -378,6 +482,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
+                autoComplete="email"
                 placeholder="you@example.com"
                 required
                 style={inputStyle}
@@ -405,11 +510,7 @@ export default function Login() {
             </button>
             <div style={{ textAlign: "center", marginTop: "0.5rem" }}>
               <span
-                onClick={() => {
-                  setTab("login");
-                  setError("");
-                  setSuccess("");
-                }}
+                onClick={() => switchTab("login")}
                 style={{
                   fontSize: "0.85rem",
                   color: "#717171",
