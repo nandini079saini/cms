@@ -38,7 +38,7 @@ export default function Users() {
     setError(false);
     try {
       // Admin-only endpoint — needs the JWT.
-      const res = await authFetch(API + "/customers");
+      const res = await authFetch(API + "/api/customers");
       const data = await res.json();
       if (data.success) setCustomers(data.customers);
       else setError(true);
@@ -57,7 +57,7 @@ export default function Users() {
     )
       return;
     try {
-      const res = await authFetch(API + "/customers/" + id, {
+      const res = await authFetch(API + "/api/customers/" + id, {
         method: "DELETE",
       });
       const data = await res.json();
