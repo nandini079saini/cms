@@ -43,6 +43,8 @@ export default function Login() {
     }
   }
 
+  // Kept for when forgot-password is re-enabled — not currently reachable
+  // from the UI since the "Forgot Password?" trigger below is commented out.
   async function doForgot() {
     setError("");
     setSuccess("");
@@ -368,6 +370,8 @@ export default function Login() {
           </button>
         )}
 
+        {/* Forgot-password entry point — disabled for now, not working yet.
+        Uncomment when the flow is ready to ship.
         <div style={{ marginTop: 20, textAlign: "center" }}>
           {isForgotView ? (
             <button
@@ -408,6 +412,7 @@ export default function Login() {
             </button>
           )}
         </div>
+        */}
       </div>
     </div>
   );

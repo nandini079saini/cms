@@ -76,6 +76,9 @@ export default function Login() {
     }
   };
 
+  // Kept for when forgot-password is re-enabled — not currently reachable
+  // from the UI since the "Forgot Password?" link and the forgot form below
+  // are commented out.
   const handleForgot = async (e) => {
     e.preventDefault();
     setError("");
@@ -199,77 +202,61 @@ export default function Login() {
               margin: "0 0 0.25rem",
             }}
           >
-            {tab === "login"
-              ? "Log in to CMSTesting"
-              : tab === "signup"
-                ? "Create your account"
-                : "Reset your password"}
+            {tab === "login" ? "Log in to CMSTesting" : "Create your account"}
           </h1>
         </div>
 
-        {tab !== "forgot" && (
-          <>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-                marginBottom: "1.5rem",
-              }}
-            >
-              <hr
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderTop: "1px solid #ebebeb",
-                }}
-              />
-              <span style={{ fontSize: "0.78rem", color: "#717171" }}>
-                or continue with email
-              </span>
-              <hr
-                style={{
-                  flex: 1,
-                  border: "none",
-                  borderTop: "1px solid #ebebeb",
-                }}
-              />
-            </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+            marginBottom: "1.5rem",
+          }}
+        >
+          <hr
+            style={{ flex: 1, border: "none", borderTop: "1px solid #ebebeb" }}
+          />
+          <span style={{ fontSize: "0.78rem", color: "#717171" }}>
+            or continue with email
+          </span>
+          <hr
+            style={{ flex: 1, border: "none", borderTop: "1px solid #ebebeb" }}
+          />
+        </div>
 
-            <div
+        <div
+          style={{
+            display: "flex",
+            background: "#f7f7f7",
+            borderRadius: "8px",
+            padding: "3px",
+            marginBottom: "1.5rem",
+          }}
+        >
+          {["login", "signup"].map((t) => (
+            <button
+              key={t}
+              onClick={() => switchTab(t)}
               style={{
-                display: "flex",
-                background: "#f7f7f7",
-                borderRadius: "8px",
-                padding: "3px",
-                marginBottom: "1.5rem",
+                flex: 1,
+                padding: "0.5rem",
+                borderRadius: "6px",
+                border: "none",
+                background: tab === t ? "#fff" : "transparent",
+                color: tab === t ? "#222" : "#717171",
+                fontWeight: tab === t ? 600 : 400,
+                fontSize: "0.85rem",
+                cursor: "pointer",
+                boxShadow: tab === t ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.15s",
+                textTransform: "capitalize",
               }}
             >
-              {["login", "signup"].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => switchTab(t)}
-                  style={{
-                    flex: 1,
-                    padding: "0.5rem",
-                    borderRadius: "6px",
-                    border: "none",
-                    background: tab === t ? "#fff" : "transparent",
-                    color: tab === t ? "#222" : "#717171",
-                    fontWeight: tab === t ? 600 : 400,
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                    boxShadow: tab === t ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
-                    transition: "all 0.15s",
-                    textTransform: "capitalize",
-                  }}
-                >
-                  {t === "login" ? "Log in" : "Sign up"}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+              {t === "login" ? "Log in" : "Sign up"}
+            </button>
+          ))}
+        </div>
 
         {error && (
           <div
@@ -342,6 +329,8 @@ export default function Login() {
                   <EyeIcon off={showPassword} />
                 </button>
               </div>
+              {/* Forgot-password entry point — disabled for now, not working yet.
+              Uncomment when the flow is ready to ship.
               <div style={{ textAlign: "right", marginTop: "0.5rem" }}>
                 <span
                   onClick={() => switchTab("forgot")}
@@ -355,6 +344,7 @@ export default function Login() {
                   Forgot Password?
                 </span>
               </div>
+              */}
             </div>
             <button
               type="submit"
@@ -471,6 +461,9 @@ export default function Login() {
           </form>
         )}
 
+        {/* Forgot-password form — disabled for now, not working yet.
+        Uncomment when the flow is ready to ship. Also uncomment the
+        "Forgot Password?" trigger link above, in the login form.
         {tab === "forgot" && (
           <form
             onSubmit={handleForgot}
@@ -523,6 +516,7 @@ export default function Login() {
             </div>
           </form>
         )}
+        */}
       </div>
     </main>
   );
