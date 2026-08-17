@@ -43,8 +43,8 @@ export default function SignupScreen() {
       );
       if (res.success) {
         const loginRes = await customerLogin(email.trim(), password);
-        if (loginRes.success && loginRes.customer) {
-          await login(loginRes.customer);
+        if (loginRes.success && loginRes.customer && loginRes.token) {
+          await login(loginRes.customer, loginRes.token);
           router.replace("/(tabs)");
         } else {
           router.replace("/login");

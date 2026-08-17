@@ -12,9 +12,12 @@ export const uploadSnap = async (formData) => {
   return response.data;
 };
 
-export const reactToSnap = async (snapId, customerId, reactionType) => {
+// customerId is no longer sent — the backend now trusts req.user.id from
+// the JWT for both /api/snaps and /api/snaps/:id/react, so a client-
+// supplied customer_id would just be ignored server-side. Kept as a
+// parameter (unused) so any existing call sites don't need updating.
+export const reactToSnap = async (snapId, _customerId, reactionType) => {
   const response = await api.post(`/api/snaps/${snapId}/react`, {
-    customer_id: customerId,
     reaction_type: reactionType,
   });
   return response.data;

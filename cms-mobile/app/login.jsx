@@ -34,8 +34,8 @@ export default function LoginScreen() {
 
     try {
       const res = await customerLogin(email.trim(), password);
-      if (res.success && res.customer) {
-        await login(res.customer);
+      if (res.success && res.customer && res.token) {
+        await login(res.customer, res.token);
         router.replace("/(tabs)");
       } else {
         setErrorMessage(res.message || "Invalid email or password.");

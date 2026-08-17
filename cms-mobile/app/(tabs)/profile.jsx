@@ -84,7 +84,8 @@ export default function ProfileScreen() {
       name: filename,
       type,
     });
-    formData.append("customer_id", user.id);
+    // customer_id is no longer sent — the backend trusts the JWT's user id
+    // instead (POST /api/snaps is now requireAuth-protected).
 
     uploadMutation.mutate(formData);
   };
